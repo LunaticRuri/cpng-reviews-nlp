@@ -1,0 +1,17 @@
+{
+  "ProductID": "7958974",
+  "ProductName": "농심 신라면",
+  "CategoryID": "1283",
+  "CategoryName": "봉지라면",
+  "ParentCategory": "면류/라면류",
+  "Reviews": [
+    {
+    "Rating": "3",
+    "Text": "맛있는데, 너무 매워요. 포장 상태가 별로. 가격은 저렴해요"
+    },
+    {
+    "Rating": "5",
+    "Text": "인생 라면이다. 너무 맛있다"
+    }
+  ]
+}
