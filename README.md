@@ -2,9 +2,11 @@ CPNG Reviews Analysis using NLP
 ======================
 **상품군별 소비자의 주요 고려 요소 파악: 쿠팡 리뷰 데이터를 중심으로**
 
-
+**Team 10**
 - 팀원 1: 석누리, 2020118013, 문헌정보학과, nuriyonsei@yonsei.ac.kr, https://github.com/LunaticRuri
 - 팀원 2: 허원재, 2020195020, 계량위험관리학과, hushpond@gmail.com
+
+연세대학교 텍스트정보처리론 기말 프로젝트 입니다.
 
 ## 1. 서론 Introduction
 ### 1.1 배경 Background
