@@ -1,9 +1,13 @@
 {
-  "product_iD": 7958974,
+  "product_id": "7958974",
   "product_name": "농심 신라면",
-  "category_id": 1283,
-  "category_name": "봉지라면",
-  "parent_category": ["면류/라면류","가공/즉석식품","식품"],
+  "category": [
+    {"category_id": "486617", "category_name":"봉지라면"},
+    {"category_id":"486616","category_name":"봉지라면"},
+    {"category_id":"432572","category_name":"라면/파스타/면"},
+    {"category_id":"432480","category_name":"반찬/간편식/대용식"},
+    {"category_id":"194276","category_name":"식품"}
+  ],
   "reviews": [
     {
     "rating": "1",
