@@ -240,3 +240,5 @@ fabric.properties
 #*--------------------------------------------*
 playground.py
 playground.ipynb
+
+data/sample_reviews/
