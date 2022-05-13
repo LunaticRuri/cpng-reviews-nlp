@@ -46,8 +46,8 @@ def second_category_parser(parent_category_id):
         category_id = elem["data-linkcode"]  # elem["data-linkcode"]는 웹페이지 링크에서 보임
         internal_category_id = elem["data-component-id"]  # subcategory 접근할 때 필요한 내부 id
 
-        second_classes[category_name] = {
-            "category_id": category_id,
+        second_classes[category_id] = {
+            "category_name": category_name,
             "internal_category_id": internal_category_id,
             "children": sub_category_parser(category_id, internal_category_id),
         }
@@ -89,14 +89,18 @@ def sub_category_parser(p_id, p_internal_id, depth=2):
 
         children = {}
 
-        category_id = elem["data-linkcode"]
-        internal_category_id = elem["data-component-id"]
+        category_name = elem.label.text
+        category_id = elem["data-linkcode"]  # elem["data-linkcode"]는 웹페이지 링크에서 보임
+        internal_category_id = elem["data-component-id"]  # subcategory 접근할 때 필요한 내부 id
 
         if elem.find("ul", {"class": "search-option-items-child"}):
             children = sub_category_parser(category_id, internal_category_id, depth + 1)
 
-        subclasses[elem.label.text] = {"category_id": category_id,
-                                       "internal_category_id": internal_category_id, "children": children}
+        subclasses[category_id] = {
+            "category_name": category_name,
+            "internal_category_id": internal_category_id,
+            "children": children,
+        }
 
     return subclasses
 
@@ -157,8 +161,8 @@ def category_structure_downloader():
 
             target_name = list(first_classes.keys())[list(first_classes.values()).index(c_id)]
 
-            output_category_structure[target_name] = {
-                "category_id": c_id,
+            output_category_structure[c_id] = {
+                "category_name": target_name,
                 "internal_category_id": "",
                 "children": c_children,
             }
