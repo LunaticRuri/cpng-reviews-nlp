@@ -1,11 +1,11 @@
 import os.path
-import concurrent.futures
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import time
 import requests
 from bs4 import BeautifulSoup
 import json
 from tqdm import tqdm
-
+from itertools import repeat
 
 class CoupangCategoryFetcher:
     """
@@ -98,6 +98,22 @@ class CoupangCategoryFetcher:
         """
         return str(int(category_id)-100)
 
+    @staticmethod
+    def tqdm_parallel_map(executor, fn, *iterables, **kwargs):
+        """
+        Equivalent to executor.map(fn, *iterables),
+        but displays a tqdm-based progress bar.
+
+        Does not support timeout or chunksize as executor.submit is used internally
+
+        **kwargs is passed to tqdm.
+        """
+        futures_list = []
+        for iterable in iterables:
+            futures_list += [executor.submit(fn, i) for i in iterable]
+        for f in tqdm(as_completed(futures_list), total=len(futures_list), **kwargs):
+            yield f.result()
+
     def read_json_category_tree(self):
         """전달받은 file_path에서 json file을 읽어서 category_tree로 내보낸다.
         :return: 파일이 정상이면 category structure를 나타낼 수 있는 nested dict,
@@ -126,7 +142,7 @@ class CoupangCategoryFetcher:
         with open(self.file_path, "w+") as jf:
             json.dump(category_tree, jf, indent=4, ensure_ascii=False)
 
-    # dirty code(dependency between methods) ->but refactoring is time-consuming job (
+    # dirty code(dependency between methods and duplication) ->but refactoring is time-consuming job (
 
     def get_category_tree(self):
         """ 카테고리 구조 반환 함수(외부 접근용)
@@ -135,56 +151,70 @@ class CoupangCategoryFetcher:
         :rtype: dict
         """
 
+        print("Fetching category data...")
+
         category_tree = {}
 
         if not self.update:
             category_tree = self.read_json_category_tree()
             if category_tree:
+                print(f"Reading {self.file_path}...")
                 return category_tree
 
-        top_categories = {}
-        # Get top layer
-
         # Multithreading
-
         if self.start_depth == self.ALL:
-            top_categories = self._first_category_parser()
-            threads = min(self.max_thread, len(top_categories))
-            with concurrent.futures.ThreadPoolExecutor(max_workers=threads) as executor:
-                futures = [executor.submit(self._second_category_parser, c_id) for c_id in top_categories.keys()]
+            print("Fetching first level categories...")
+            category_tree = self._first_category_parser()
 
-                # tqdm progress bar
-                for f in tqdm(concurrent.futures.as_completed(futures), total=len(futures)):
-                    c_id, c_children = f.result()
+            print("Fetching second level categories...")
+            for key in tqdm(category_tree.keys()):
+                category_tree[key]["children"] = self._second_category_parser(key)
 
-                    category_name = top_categories.get(c_id)["category_name"]
+            print("Fetching subcategories...")
+            for key in tqdm(category_tree.keys()):
+                with ThreadPoolExecutor(max_workers=self.max_thread) as executor:
+                    futures = []
+                    for c_id in category_tree[key]["children"].keys():
+                        futures.append(executor.submit(self._sub_category_parser, c_id))
 
-                    category_tree[c_id] = {
-                        "category_name": category_name,
-                        "internal_category_id": "",
-                        "children": c_children,
-                    }
+                    for f in as_completed(futures):
+                        c_id, c_children = f.result()
+
+                        category_name = category_tree[key]["children"].get(c_id)["category_name"]
+
+                        internal_id = self.get_internal_id(c_id)
+                        category_tree[key]["children"][c_id] = {
+                            "category_name": category_name,
+                            "internal_category_id": internal_id,
+                            "children": c_children,
+                        }
 
         elif self.start_depth == 1:
-            _, top_categories = self._second_category_parser(self.root_category_id)
+            print("Fetching second level categories...")
+
+            top_categories = self._second_category_parser(self.root_category_id)
+
             threads = min(self.max_thread, len(top_categories))
-            with concurrent.futures.ThreadPoolExecutor(max_workers=threads) as executor:
+
+            with ThreadPoolExecutor(max_workers=threads) as executor:
                 futures = []
                 for c_id in top_categories.keys():
-                    futures.append(executor.submit(self._sub_category_parser, c_id, self.start_depth))
+                    futures.append(executor.submit(self._sub_category_parser, c_id))
 
                 # tqdm progress bar
-                for f in tqdm(concurrent.futures.as_completed(futures), total=len(futures)):
+                for f in tqdm(as_completed(futures), total=len(futures)):
                     c_id, c_children = f.result()
 
                     category_name = top_categories.get(c_id)["category_name"]
 
+                    internal_id = self.get_internal_id(c_id)
                     category_tree[c_id] = {
                         "category_name": category_name,
-                        "internal_category_id": "",
+                        "internal_category_id": internal_id,
                         "children": c_children,
                     }
         else:
+            print("Fetching subcategories...")
             category_tree = self._sub_category_parser(self.root_category_id, self.start_depth)
 
         self.write_json_category_tree(category_tree)
@@ -238,7 +268,7 @@ class CoupangCategoryFetcher:
         """쿠팡 카테고리 2단계 크롤링 메소드(내부용)
         예시) 식품 -> 면/통조림/가공식품 에서 '면/통조림/가공식품'
         :param p_category_id: 직전 상위 카테고리 id, 링크 접근에 필요함.
-        :returns: (p_category_id, second_classes)
+        :returns: second_classes
         """
         # category page link
         url = self.category_url + p_category_id
@@ -263,10 +293,10 @@ class CoupangCategoryFetcher:
             second_classes[category_id] = {
                 "category_name": category_name,
                 "internal_category_id": internal_category_id,
-                "children": self._sub_category_parser(category_id),
+                "children": {},  # self._sub_category_parser(category_id),
             }
 
-        return p_category_id, second_classes
+        return second_classes
 
     def _first_category_parser(self):
         """ 쿠팡 카테고리 1단계 크롤링 메소드(내부용)
@@ -295,7 +325,11 @@ class CoupangCategoryFetcher:
             # '패션의류/잡화'는 실제 분류가 아님. 그 밑의 분류를 최상위로 해야 함
             if first_sub.a['href'] == 'javascript:;':
                 for first_sub2 in first_sub.find_all('li', {"class": "second-depth-list"}):
-                    first_classes[first_sub2.a['href'][-6:]] = {"category_name": first_sub2.a.get_text(strip=True)}
+                    first_classes[first_sub2.a['href'][-6:]] = {
+                        "category_name": first_sub2.a.get_text(strip=True),
+                        "internal_category_id": "",
+                        "children": {},
+                    }
             # 나머지 대분류
             else:
                 first_classes[first_sub.a['href'][-6:]] = {
@@ -363,7 +397,7 @@ class CoupangCategory:
 
 
 test_tree = CoupangCategory()
-print(test_tree)
+
 
 
 
