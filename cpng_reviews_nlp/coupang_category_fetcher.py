@@ -9,6 +9,8 @@ import math
 
 
 class CoupangCategoryFetcher:
+    # TODO: tree는 그래도 놔두고 product_list만 update하는 부분 추가
+
     headers = {
         "User-Agent": 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) '
                       'Version/15.4 Safari/605.1.15',
@@ -103,22 +105,6 @@ class CoupangCategoryFetcher:
         """
         return str(int(category_id) - 100)
 
-    @staticmethod
-    def tqdm_parallel_map(executor, fn, *iterables, **kwargs):
-        """
-        Equivalent to executor.map(fn, *iterables),
-        but displays a tqdm-based progress bar.
-
-        Does not support timeout or chunksize as executor.submit is used internally
-
-        **kwargs is passed to tqdm.
-        """
-        futures_list = []
-        for iterable in iterables:
-            futures_list += [executor.submit(fn, i) for i in iterable]
-        for f in tqdm(as_completed(futures_list), total=len(futures_list), **kwargs):
-            yield f.result()
-
     # for _set_product_list iteration
     @staticmethod
     def get_all_category_iter(dictionary):
@@ -151,8 +137,6 @@ class CoupangCategoryFetcher:
     def write_json_category_tree(self):
         """
         category_tree 받아와 json file로 file_path에 저장하는 함수
-        :param category_tree: category structure를 나타낼 수 있는 nested dictionary
-        :type category_tree: dict
         """
         with open(self.file_path, "w+") as jf:
             json.dump(self.category_tree, jf, indent=4, ensure_ascii=False)
@@ -179,6 +163,7 @@ class CoupangCategoryFetcher:
 
         # Multithreading
         if self.start_depth == self.ALL:
+            print("This will take a long time. (")
             print("Fetching first level categories...")
             category_tree = self._first_category_parser()
 
@@ -197,11 +182,13 @@ class CoupangCategoryFetcher:
                         c_id, c_children = f.result()
 
                         category_name = category_tree[key]["children"].get(c_id)["category_name"]
-
                         internal_id = self.get_internal_id(c_id)
+                        _, product_list = self._get_product_list_by_category(c_id)
+
                         category_tree[key]["children"][c_id] = {
                             "category_name": category_name,
                             "internal_category_id": internal_id,
+                            "product_list": product_list,
                             "children": c_children,
                         }
 
@@ -210,6 +197,7 @@ class CoupangCategoryFetcher:
 
             top_categories = self._second_category_parser(self.root_category_id)
 
+            print("Fetching subcategories...")
             threads = min(self.max_thread, len(top_categories))
 
             with ThreadPoolExecutor(max_workers=threads) as executor:
@@ -222,19 +210,19 @@ class CoupangCategoryFetcher:
                     c_id, c_children = f.result()
 
                     category_name = top_categories.get(c_id)["category_name"]
-
                     internal_id = self.get_internal_id(c_id)
+                    _, product_list = self._get_product_list_by_category(c_id)
+
                     category_tree[c_id] = {
                         "category_name": category_name,
                         "internal_category_id": internal_id,
+                        "product_list": product_list,
                         "children": c_children,
                     }
+
         else:
             print("Fetching subcategories...")
             _, self.category_tree = self._sub_category_parser(self.root_category_id, self.start_depth)
-
-        # category 별 product_list
-        self._set_product_list()
 
         self.write_json_category_tree()
 
@@ -261,10 +249,10 @@ class CoupangCategoryFetcher:
         product_list = []
 
         for page in range(1, end_page + 1):
-            url = f"https://www.coupang.com/np/categories/194627?" \
+            category_page_url = f"https://www.coupang.com/np/categories/194627?" \
                   f"listSize={CoupangCategoryFetcher.PAGE_LIST_SIZE}&page={page}&sorter=saleCountDesc"
 
-            soup = CoupangCategoryFetcher.get_soup(category_first_page_url)
+            soup = CoupangCategoryFetcher.get_soup(category_page_url)
 
             target_dict = eval(soup.find("ul", {"class": "baby-product-list"})["data-products"])
             target_list = target_dict['indexes']
@@ -312,7 +300,7 @@ class CoupangCategoryFetcher:
             # subcategory 접근할 때 필요한 내부 id -> elem["data-component-id"] 로도 접근 가능
             internal_category_id = self.get_internal_id(category_id)
 
-            product_list = self._get_product_list_by_category(category_id)
+            _, product_list = self._get_product_list_by_category(category_id)
 
             if elem.find("ul", {"class": "search-option-items-child"}):
                 _, children = self._sub_category_parser(category_id, depth + 1)
@@ -340,7 +328,6 @@ class CoupangCategoryFetcher:
 
         second_classes = {}
 
-        # TODO: concurrent 넣기
         for elem in second_li_list:
 
             # campaign page는 실제 카테고리 분류가 아니기 떄문에 제외함
@@ -353,7 +340,7 @@ class CoupangCategoryFetcher:
             # subcategory 접근할 때 필요한 내부 id -> elem["data-component-id"] 로도 접근 가능
             internal_category_id = self.get_internal_id(category_id)
 
-            product_list = self._get_product_list_by_category(category_id)
+            _, product_list = self._get_product_list_by_category(category_id)
 
             second_classes[category_id] = {
                 "category_name": category_name,
@@ -361,6 +348,17 @@ class CoupangCategoryFetcher:
                 "product_list": product_list,
                 "children": {},
             }
+
+        threads = min(self.max_thread, len(second_li_list))
+
+        with ThreadPoolExecutor(max_workers=threads) as executor:
+            futures = []
+            for c_id in second_classes.keys():
+                futures.append(executor.submit(self._get_product_list_by_category, c_id))
+
+            for f in as_completed(futures):
+                c_id, product_list = f.result()
+                second_classes[c_id]["product_list"] = product_list
 
         return second_classes
 
@@ -384,8 +382,7 @@ class CoupangCategoryFetcher:
 
         first_iter = soup.find("ul", {"class": "menu shopping-menu-list"}).find_all('li', recursive=False)
 
-        # TODO: concurrent 넣기
-        for first_sub in tqdm(first_iter):
+        for first_sub in first_iter:
 
             # 빈칸일 경우
             if first_sub.a is None:
@@ -396,7 +393,7 @@ class CoupangCategoryFetcher:
                 for first_sub2 in first_sub.find_all('li', {"class": "second-depth-list"}):
                     category_id = first_sub2.a['href'][-6:]
                     category_name = first_sub2.a.get_text(strip=True)
-                    product_list = self._get_product_list_by_category(category_id)
+                    _, product_list = self._get_product_list_by_category(category_id)
 
                     first_classes[category_id] = {
                         "category_name": category_name,
@@ -408,12 +405,25 @@ class CoupangCategoryFetcher:
             else:
                 category_id = first_sub.a['href'][-6:]
                 category_name = first_sub.a.get_text(strip=True)
-                product_list = self._get_product_list_by_category(category_id)
+                _, product_list = self._get_product_list_by_category(category_id)
                 first_classes[category_id] = {
                     "category_name": category_name,
                     "internal_category_id": "",
                     "product_list": product_list,
                     "children": {},
                 }
+
+        # Multithreading
+        threads = min(self.max_thread, len(first_classes))
+
+        with ThreadPoolExecutor(max_workers=threads) as executor:
+            futures = []
+            for c_id in first_classes.keys():
+                futures.append(executor.submit(self._get_product_list_by_category, c_id))
+
+            # tqdm progress bar
+            for f in tqdm(as_completed(futures), total=len(futures)):
+                c_id, product_list = f.result()
+                first_classes[c_id]["product_list"] = product_list
 
         return first_classes
