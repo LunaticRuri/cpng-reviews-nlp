@@ -16,7 +16,7 @@ MAX_CHAR_COUNT = 50000
 REVIEW_PAGE_SIZE = 40
 
 SENTENCE_DSCR = '$'
-REVIEWS_PATH = '../data/sample_reviews'
+REVIEWS_PATH = '../../data/sample_reviews'
 
 
 def download_review_by_product(product_id):
