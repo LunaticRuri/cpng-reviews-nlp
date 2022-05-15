@@ -94,11 +94,7 @@ class CoupangData:
 
     def get_children(self, category_id):
         if self.is_exist(category_id):
-            children = self.get_values_by_path(
-                self.category_tree,
-                self.get_path(self.category_tree, category_id)
-            )["children"]
-
+            children = self.get_values_by_path(self.get_path(self.category_tree, category_id))["children"]
             return children
         else:
             return False
@@ -121,11 +117,12 @@ def demo_coupang_category():
 
 
 def demo_coupang_reviews():
-    test_tree = CoupangData(update=True)
+    test_tree = CoupangData('194282', update=True)
     count = 0
     for k, _ in cf.CoupangCategoryFetcher.get_all_category_iter(test_tree.get_category_tree()):
         if k.isdigit():
             count += 2
     print(count)
-# start: 05/16 01:16
+
+
 demo_coupang_reviews()
