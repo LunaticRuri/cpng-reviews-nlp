@@ -37,8 +37,8 @@ class CoupangData:
             update,
             max_thread,
         )
-        category_tree = self.cwr.get_category_tree()
-        self.category_tree = category_tree
+
+        self.category_tree = self.cwr.get_category_tree()
 
         self.rwr = rf.CoupangReviewsFetcher()
 
@@ -57,8 +57,6 @@ class CoupangData:
 
     def __repr__(self):
         return str(self.category_tree)
-
-    # TODO: staticmethods 여야 하는가?
 
     @staticmethod
     def get_path(target_dict, category_id, prepath=()):
@@ -109,8 +107,6 @@ class CoupangData:
         return data
 
 
-# TODO: 본 파일로 옮길 때, 경로 수정 하기
-
 # Example Usage
 
 def demo_coupang_category():
@@ -123,7 +119,6 @@ def demo_coupang_category():
 
 
 def demo_coupang_reviews():
-    test_tree = CoupangData('337620', update=True)
-    print(test_tree)
+    test_tree = CoupangData(update=True)
 
 demo_coupang_reviews()

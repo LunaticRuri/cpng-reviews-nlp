@@ -50,33 +50,33 @@ class CoupangCategoryFetcher:
         self.file_path = file_path
         self.update = update
 
-        if root_category_id == "all":
+        self.soup_count = 0
+
+        if self.root_category_id == "all":
             self.start_depth = self.ALL
         else:
-            url = self.category_url + root_category_id
-
+            url = self.category_url + self.root_category_id
             target_soup = self.get_soup(url).find("div", {"class": "search-result"})
 
             # 존재하지 않는 category_id
             if not target_soup:
-                raise SystemExit(f"Category: {root_category_id} doesn't exist")
-
+                raise SystemExit(f"Category: {self.root_category_id} doesn't exist")
             # second와 sub에서 사용되는 depth 기준과 맞춰주기 위해 -1
             self.start_depth = len(target_soup.find_all("li")) - 1
 
         self.category_tree = {}
 
-    # TODO: __repr__ 보충
     def __repr__(self):
         repr_dict = {
             "root_category_id": self.root_category_id,
-            "start_depth": self.start_depth,
+            "max_product_count": self.max_product_count,
             "max_thread": self.max_thread,
+            "file_path": self.file_path,
+            "update": self.update,
         }
         return str(repr_dict)
 
-    @staticmethod
-    def get_soup(url):
+    def get_soup(self, url):
         """ url로 가져온 웹사이트를 파싱해 BeautifulSoup 객체로 만든다.
         :param url: 웹사이트 주소
         :type url: str
@@ -93,6 +93,8 @@ class CoupangCategoryFetcher:
         html = response.text
         soup = BeautifulSoup(html, 'lxml')
 
+        self.soup_count += 1
+
         return soup
 
     @staticmethod
@@ -105,7 +107,7 @@ class CoupangCategoryFetcher:
         """
         return str(int(category_id) - 100)
 
-    # for _set_product_list iteration
+    # for test
     @staticmethod
     def get_all_category_iter(dictionary):
         for key, value in dictionary.items():
@@ -141,7 +143,7 @@ class CoupangCategoryFetcher:
         with open(self.file_path, "w+") as jf:
             json.dump(self.category_tree, jf, indent=4, ensure_ascii=False)
 
-    # dirty code(dependency between methods and duplication) ->but refactoring is time-consuming job (
+    # dirty code(dependency between methods and duplication) -> but refactoring is time-consuming job (
 
     def get_category_tree(self):
         """ 카테고리 구조 반환 함수(외부 접근용)
@@ -152,40 +154,39 @@ class CoupangCategoryFetcher:
 
         print("Fetching category data...")
 
-        category_tree = {}
 
         #  TODO: 불러온 파일이 원하는 데이터 아닐 경우 예외 처리 구현
         if not self.update:
-            category_tree = self.read_json_category_tree()
-            if category_tree:
+            self.category_tree = self.read_json_category_tree()
+            if self.category_tree:
                 print(f"Reading {self.file_path}...")
-                return category_tree
+                return self.category_tree
 
         # Multithreading
         if self.start_depth == self.ALL:
             print("This will take a long time. (")
             print("Fetching first level categories...")
-            category_tree = self._first_category_parser()
+            self.category_tree = self._first_category_parser()
 
             print("Fetching second level categories...")
-            for key in tqdm(category_tree.keys()):
-                category_tree[key]["children"] = self._second_category_parser(key)
+            for key in tqdm(self.category_tree.keys(), total=len(self.category_tree)):
+                self.category_tree[key]["children"] = self._second_category_parser(key)
 
             print("Fetching subcategories...")
-            for key in tqdm(category_tree.keys()):
+            for key in tqdm(self.category_tree.keys(), total=len(self.category_tree)):
                 with ThreadPoolExecutor(max_workers=self.max_thread) as executor:
                     futures = []
-                    for c_id in category_tree[key]["children"].keys():
+                    for c_id in self.category_tree[key]["children"].keys():
                         futures.append(executor.submit(self._sub_category_parser, c_id))
 
                     for f in as_completed(futures):
                         c_id, c_children = f.result()
 
-                        category_name = category_tree[key]["children"].get(c_id)["category_name"]
+                        category_name = self.category_tree[key]["children"].get(c_id)["category_name"]
                         internal_id = self.get_internal_id(c_id)
                         _, product_list = self._get_product_list_by_category(c_id)
 
-                        category_tree[key]["children"][c_id] = {
+                        self.category_tree[key]["children"][c_id] = {
                             "category_name": category_name,
                             "internal_category_id": internal_id,
                             "product_list": product_list,
@@ -213,7 +214,7 @@ class CoupangCategoryFetcher:
                     internal_id = self.get_internal_id(c_id)
                     _, product_list = self._get_product_list_by_category(c_id)
 
-                    category_tree[c_id] = {
+                    self.category_tree[c_id] = {
                         "category_name": category_name,
                         "internal_category_id": internal_id,
                         "product_list": product_list,
@@ -226,7 +227,9 @@ class CoupangCategoryFetcher:
 
         self.write_json_category_tree()
 
-        return category_tree
+        print("get_soup: ", self.soup_count)
+
+        return self.category_tree
 
     PAGE_LIST_SIZE = 120
 
@@ -237,7 +240,7 @@ class CoupangCategoryFetcher:
         category_first_page_url = f"https://www.coupang.com/np/categories/194627?" \
                                   f"listSize={self.PAGE_LIST_SIZE}&page=1&sorter=saleCountDesc"
 
-        soup = CoupangCategoryFetcher.get_soup(category_first_page_url)
+        soup = self.get_soup(category_first_page_url)
 
         target_dict = eval(soup.find("ul", {"class": "baby-product-list"})["data-products"])
         max_page = int(target_dict['productTotalPage'])
@@ -245,14 +248,13 @@ class CoupangCategoryFetcher:
         # 불러올 페이지 수 계산
         end_page = math.ceil(self.max_product_count / CoupangCategoryFetcher.PAGE_LIST_SIZE) \
             if self.max_product_count / CoupangCategoryFetcher.PAGE_LIST_SIZE < max_page else max_page
-
         product_list = []
 
         for page in range(1, end_page + 1):
             category_page_url = f"https://www.coupang.com/np/categories/194627?" \
                   f"listSize={CoupangCategoryFetcher.PAGE_LIST_SIZE}&page={page}&sorter=saleCountDesc"
 
-            soup = CoupangCategoryFetcher.get_soup(category_page_url)
+            soup = self.get_soup(category_page_url)
 
             target_dict = eval(soup.find("ul", {"class": "baby-product-list"})["data-products"])
             target_list = target_dict['indexes']
@@ -279,14 +281,35 @@ class CoupangCategoryFetcher:
         url = f'https://www.coupang.com/np/search/getFirstSubCategory?channel=&component={p_internal_id}'
 
         soup = self.get_soup(url)
+        #print("start depth:",self.start_depth)
+        #print(soup)
 
         subclasses = {}
 
         # 같은 깊이만 탐색
         sub_li_list = []
+        is_end_of_category = True
         for elem in soup.find_all("li"):
             if eval(elem.label["data-coulog"])["depth"] == str(depth):
                 sub_li_list.append(elem)
+                is_end_of_category = False
+
+        if is_end_of_category:
+            category_name = elem.label.text
+            # elem["data-linkcode"]는 웹페이지 링크에서 보임
+            category_id = elem["data-linkcode"]
+            # subcategory 접근할 때 필요한 내부 id -> elem["data-component-id"] 로도 접근 가능
+            internal_category_id = self.get_internal_id(category_id)
+
+            _, product_list = self._get_product_list_by_category(category_id)
+
+            subclasses[p_category_id] = {
+                "category_name": category_name,
+                "internal_category_id": internal_category_id,
+                "product_list": product_list,
+                "children": {},
+            }
+            return p_category_id, subclasses
 
         for elem in sub_li_list:
             children = {}
@@ -295,6 +318,7 @@ class CoupangCategoryFetcher:
                 continue
 
             category_name = elem.label.text
+            #print(category_name)
             # elem["data-linkcode"]는 웹페이지 링크에서 보임
             category_id = elem["data-linkcode"]
             # subcategory 접근할 때 필요한 내부 id -> elem["data-component-id"] 로도 접근 가능
