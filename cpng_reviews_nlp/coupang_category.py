@@ -5,12 +5,10 @@ import requests
 from bs4 import BeautifulSoup
 import json
 from tqdm import tqdm
-from itertools import repeat
+from functools import reduce
+import pprint
 
 class CoupangCategoryFetcher:
-    """
-
-    """
     headers = {
         "User-Agent": 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) '
                       'Version/15.4 Safari/605.1.15',
@@ -155,6 +153,7 @@ class CoupangCategoryFetcher:
 
         category_tree = {}
 
+        #  TODO: 불러온 파일이 원하는 데이터 아닐 경우 예외 처리 구현
         if not self.update:
             category_tree = self.read_json_category_tree()
             if category_tree:
@@ -215,7 +214,7 @@ class CoupangCategoryFetcher:
                     }
         else:
             print("Fetching subcategories...")
-            category_tree = self._sub_category_parser(self.root_category_id, self.start_depth)
+            _, category_tree = self._sub_category_parser(self.root_category_id, self.start_depth)
 
         self.write_json_category_tree(category_tree)
 
@@ -239,7 +238,10 @@ class CoupangCategoryFetcher:
         subclasses = {}
 
         # 같은 깊이만 탐색
-        sub_li_list = [elem for elem in soup.find_all("li") if eval(elem.label["data-coulog"])["depth"] == str(depth)]
+        sub_li_list = []
+        for elem in soup.find_all("li"):
+            if eval(elem.label["data-coulog"])["depth"] == str(depth):
+                sub_li_list.append(elem)
 
         for elem in sub_li_list:
             children = {}
@@ -254,7 +256,7 @@ class CoupangCategoryFetcher:
             internal_category_id = self.get_internal_id(category_id)
 
             if elem.find("ul", {"class": "search-option-items-child"}):
-                children = self._sub_category_parser(category_id, depth + 1)
+                _, children = self._sub_category_parser(category_id, depth + 1)
 
             subclasses[category_id] = {
                 "category_name": category_name,
@@ -361,7 +363,7 @@ class CoupangCategory:
         :type update: bool
         """
         self.file_path = file_path
-
+        self.root_category_id = root_category_id
         # 쿠팡이 카테고리 구조를 변경할 경우 파일과 불일치 문제로 에러 발생 가능 지점
         cwr = CoupangCategoryFetcher(root_category_id, file_path, update, max_thread)
         category_tree = cwr.get_category_tree()
@@ -383,22 +385,63 @@ class CoupangCategory:
     def __repr__(self):
         return str(self.category_tree)
 
-    def is_exist(self):
-        pass
+    @staticmethod
+    def get_path(target_dict, category_id, prepath=()):
+        for k, v in target_dict.items():
+            path = prepath + (k,)
+            if k == category_id:  # found value
+                return path
+            elif type(v) is dict:  # v is a dict
+                p = CoupangCategory.get_path(v, category_id, path)  # recursive call
+                if p is not None:
+                    return p
+
+    @staticmethod
+    def get_values_by_path(target_dict, paths):
+        return reduce(dict.get, paths, target_dict)
 
     def get_category_tree(self):
         return self.category_tree
 
-    def get_parent(self):
-        pass
+    def is_exist(self, category_id):
+        if str(self.category_tree).find(category_id) != -1:
+            return True
+        else:
+            return False
 
-    def get_children(self):
-        pass
+    def get_parent(self, category_id):
+        c_path = self.get_path(self.category_tree, category_id)
+        try:
+            parent = c_path[-3]
+        except IndexError:
+            return self.root_category_id
+
+        return parent
+
+    def get_children(self, category_id):
+        if self.is_exist(category_id):
+            children = self.get_values_by_path(
+                self.category_tree,
+                self.get_path(self.category_tree, category_id)
+            )["children"]
+
+            return children
+        else:
+            return False
+
+    def get_data_by_id(self, category_id):
+        c_path = self.get_path(self.category_tree, category_id)
+        data = self.get_values_by_path(self.category_tree, c_path)
+        return data
 
 
-test_tree = CoupangCategory()
+# Example Usage
+test_tree = CoupangCategory(update=False)
 
-
+print(test_tree.is_exist('194282'))
+print(test_tree.get_parent('194282'))
+pprint.pprint(test_tree.get_children('194282'))
+pprint.pprint(test_tree.get_data_by_id('194282'))
 
 
 
