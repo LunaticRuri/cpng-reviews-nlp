@@ -58,6 +58,8 @@ class CoupangData:
     def __repr__(self):
         return str(self.category_tree)
 
+    # TODO: staticmethods 여야 하는가?
+
     @staticmethod
     def get_path(target_dict, category_id, prepath=()):
         for k, v in target_dict.items():
@@ -120,5 +122,10 @@ def demo_coupang_category():
 
 def demo_coupang_reviews():
     test_tree = CoupangData(update=True)
-
+    count = 0
+    for k, _ in cf.CoupangCategoryFetcher.get_all_category_iter(test_tree.get_category_tree()):
+        if k.isdigit():
+            count += 2
+    print(count)
+# start: 05/16 01:16
 demo_coupang_reviews()

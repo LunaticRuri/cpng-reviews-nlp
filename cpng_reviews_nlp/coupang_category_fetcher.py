@@ -240,9 +240,19 @@ class CoupangCategoryFetcher:
         category_first_page_url = f"https://www.coupang.com/np/categories/194627?" \
                                   f"listSize={self.PAGE_LIST_SIZE}&page=1&sorter=saleCountDesc"
 
-        soup = self.get_soup(category_first_page_url)
+        soup = self.get_soup(category_first_page_url).find("ul", {"class": "baby-product-list"})["data-products"]
 
-        target_dict = eval(soup.find("ul", {"class": "baby-product-list"})["data-products"])
+        # 비어 있을 때
+        if not soup:
+            print(category_id, '@@@@@@@@@@@@@@@@@@@@@@')
+            return category_id, []
+        # TODO: 에러 못잡으면 try로 soup 출력
+        try:
+            target_dict = eval(soup)
+        except:
+            print(category_id)
+            print(soup)
+
         max_page = int(target_dict['productTotalPage'])
 
         # 불러올 페이지 수 계산
@@ -281,8 +291,6 @@ class CoupangCategoryFetcher:
         url = f'https://www.coupang.com/np/search/getFirstSubCategory?channel=&component={p_internal_id}'
 
         soup = self.get_soup(url)
-        #print("start depth:",self.start_depth)
-        #print(soup)
 
         subclasses = {}
 
@@ -294,22 +302,9 @@ class CoupangCategoryFetcher:
                 sub_li_list.append(elem)
                 is_end_of_category = False
 
+        # 카테고리 상위 부분 말단
         if is_end_of_category:
-            category_name = elem.label.text
-            # elem["data-linkcode"]는 웹페이지 링크에서 보임
-            category_id = elem["data-linkcode"]
-            # subcategory 접근할 때 필요한 내부 id -> elem["data-component-id"] 로도 접근 가능
-            internal_category_id = self.get_internal_id(category_id)
-
-            _, product_list = self._get_product_list_by_category(category_id)
-
-            subclasses[p_category_id] = {
-                "category_name": category_name,
-                "internal_category_id": internal_category_id,
-                "product_list": product_list,
-                "children": {},
-            }
-            return p_category_id, subclasses
+            return p_category_id, {}
 
         for elem in sub_li_list:
             children = {}
@@ -318,7 +313,7 @@ class CoupangCategoryFetcher:
                 continue
 
             category_name = elem.label.text
-            #print(category_name)
+            print(depth, category_name)
             # elem["data-linkcode"]는 웹페이지 링크에서 보임
             category_id = elem["data-linkcode"]
             # subcategory 접근할 때 필요한 내부 id -> elem["data-component-id"] 로도 접근 가능
