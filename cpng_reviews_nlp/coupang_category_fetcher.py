@@ -5,8 +5,7 @@ import requests
 from bs4 import BeautifulSoup
 import json
 from tqdm import tqdm
-from functools import reduce
-import pprint
+import math
 
 
 class CoupangCategoryFetcher:
@@ -24,6 +23,7 @@ class CoupangCategoryFetcher:
     def __init__(
             self,
             root_category_id,
+            max_product_count,
             file_path,
             update,
             max_thread,
@@ -32,6 +32,8 @@ class CoupangCategoryFetcher:
 
         :param root_category_id: 최상위 카테고리, 만약 self.ALL(=0)이면 전체 카테고리
         :type root_category_id:str
+        :param max_product_count: 카테고리별 최대 상품 수
+        :type max_product_count: int
         :param file_path: 카테고리 구조를 저장할 경로(파일 이름까지 포함), 파일 형식은 json
         :type file_path: str
         :param update: 업데이트 여부 - 참이면 경로에 파일이 있어도 새로 받아옴, 기본 값이 참
@@ -41,6 +43,7 @@ class CoupangCategoryFetcher:
         """
 
         self.root_category_id = root_category_id
+        self.max_product_count = max_product_count
         self.max_thread = max_thread
         self.file_path = file_path
         self.update = update
@@ -50,7 +53,7 @@ class CoupangCategoryFetcher:
         else:
             url = self.category_url + root_category_id
 
-            target_soup = self.get_soup(url).find("div",{"class":"search-result"})
+            target_soup = self.get_soup(url).find("div", {"class": "search-result"})
 
             # 존재하지 않는 category_id
             if not target_soup:
@@ -59,6 +62,9 @@ class CoupangCategoryFetcher:
             # second와 sub에서 사용되는 depth 기준과 맞춰주기 위해 -1
             self.start_depth = len(target_soup.find_all("li")) - 1
 
+        self.category_tree = {}
+
+    # TODO: __repr__ 보충
     def __repr__(self):
         repr_dict = {
             "root_category_id": self.root_category_id,
@@ -95,7 +101,7 @@ class CoupangCategoryFetcher:
         :return: internal_category_id
         :rtype: str
         """
-        return str(int(category_id)-100)
+        return str(int(category_id) - 100)
 
     @staticmethod
     def tqdm_parallel_map(executor, fn, *iterables, **kwargs):
@@ -112,6 +118,16 @@ class CoupangCategoryFetcher:
             futures_list += [executor.submit(fn, i) for i in iterable]
         for f in tqdm(as_completed(futures_list), total=len(futures_list), **kwargs):
             yield f.result()
+
+    # for _set_product_list iteration
+    @staticmethod
+    def get_all_category_iter(dictionary):
+        for key, value in dictionary.items():
+            if type(value) is dict:
+                yield key, value
+                yield from CoupangCategoryFetcher.get_all_category_iter(value)
+            else:
+                yield key, value
 
     def read_json_category_tree(self):
         """전달받은 file_path에서 json file을 읽어서 category_tree로 내보낸다.
@@ -132,14 +148,14 @@ class CoupangCategoryFetcher:
 
         return category_tree
 
-    def write_json_category_tree(self, category_tree):
+    def write_json_category_tree(self):
         """
         category_tree 받아와 json file로 file_path에 저장하는 함수
         :param category_tree: category structure를 나타낼 수 있는 nested dictionary
         :type category_tree: dict
         """
         with open(self.file_path, "w+") as jf:
-            json.dump(category_tree, jf, indent=4, ensure_ascii=False)
+            json.dump(self.category_tree, jf, indent=4, ensure_ascii=False)
 
     # dirty code(dependency between methods and duplication) ->but refactoring is time-consuming job (
 
@@ -215,11 +231,51 @@ class CoupangCategoryFetcher:
                     }
         else:
             print("Fetching subcategories...")
-            _, category_tree = self._sub_category_parser(self.root_category_id, self.start_depth)
+            _, self.category_tree = self._sub_category_parser(self.root_category_id, self.start_depth)
 
-        self.write_json_category_tree(category_tree)
+        # category 별 product_list
+        self._set_product_list()
+
+        self.write_json_category_tree()
 
         return category_tree
+
+    PAGE_LIST_SIZE = 120
+
+    def _get_product_list_by_category(self, category_id):
+
+        # sorter 설정할 수 있게 하기
+        # 정렬 기준이 판매량임
+        category_first_page_url = f"https://www.coupang.com/np/categories/194627?" \
+                                  f"listSize={self.PAGE_LIST_SIZE}&page=1&sorter=saleCountDesc"
+
+        soup = CoupangCategoryFetcher.get_soup(category_first_page_url)
+
+        target_dict = eval(soup.find("ul", {"class": "baby-product-list"})["data-products"])
+        max_page = int(target_dict['productTotalPage'])
+
+        # 불러올 페이지 수 계산
+        end_page = math.ceil(self.max_product_count / CoupangCategoryFetcher.PAGE_LIST_SIZE) \
+            if self.max_product_count / CoupangCategoryFetcher.PAGE_LIST_SIZE < max_page else max_page
+
+        product_list = []
+
+        for page in range(1, end_page + 1):
+            url = f"https://www.coupang.com/np/categories/194627?" \
+                  f"listSize={CoupangCategoryFetcher.PAGE_LIST_SIZE}&page={page}&sorter=saleCountDesc"
+
+            soup = CoupangCategoryFetcher.get_soup(category_first_page_url)
+
+            target_dict = eval(soup.find("ul", {"class": "baby-product-list"})["data-products"])
+            target_list = target_dict['indexes']
+
+            product_list.extend(target_list)
+
+        # list 길이 최대 상품 수에 맞추어 잘라내기
+        if len(product_list) > self.max_product_count:
+            product_list = product_list[:self.max_product_count]
+
+        return category_id, product_list
 
     def _sub_category_parser(self, p_category_id, depth=2):
         """ 쿠팡 카테고리 3단계 이하 크롤링 메소드(내부용)
@@ -256,12 +312,15 @@ class CoupangCategoryFetcher:
             # subcategory 접근할 때 필요한 내부 id -> elem["data-component-id"] 로도 접근 가능
             internal_category_id = self.get_internal_id(category_id)
 
+            product_list = self._get_product_list_by_category(category_id)
+
             if elem.find("ul", {"class": "search-option-items-child"}):
                 _, children = self._sub_category_parser(category_id, depth + 1)
 
             subclasses[category_id] = {
                 "category_name": category_name,
                 "internal_category_id": internal_category_id,
+                "product_list": product_list,
                 "children": children,
             }
 
@@ -281,6 +340,7 @@ class CoupangCategoryFetcher:
 
         second_classes = {}
 
+        # TODO: concurrent 넣기
         for elem in second_li_list:
 
             # campaign page는 실제 카테고리 분류가 아니기 떄문에 제외함
@@ -293,10 +353,13 @@ class CoupangCategoryFetcher:
             # subcategory 접근할 때 필요한 내부 id -> elem["data-component-id"] 로도 접근 가능
             internal_category_id = self.get_internal_id(category_id)
 
+            product_list = self._get_product_list_by_category(category_id)
+
             second_classes[category_id] = {
                 "category_name": category_name,
                 "internal_category_id": internal_category_id,
-                "children": {},  # self._sub_category_parser(category_id),
+                "product_list": product_list,
+                "children": {},
             }
 
         return second_classes
@@ -319,7 +382,10 @@ class CoupangCategoryFetcher:
         # 최상위 분류
         first_classes = {}
 
-        for first_sub in soup.find("ul", {"class": "menu shopping-menu-list"}).find_all('li', recursive=False):
+        first_iter = soup.find("ul", {"class": "menu shopping-menu-list"}).find_all('li', recursive=False)
+
+        # TODO: concurrent 넣기
+        for first_sub in tqdm(first_iter):
 
             # 빈칸일 경우
             if first_sub.a is None:
@@ -328,123 +394,26 @@ class CoupangCategoryFetcher:
             # '패션의류/잡화'는 실제 분류가 아님. 그 밑의 분류를 최상위로 해야 함
             if first_sub.a['href'] == 'javascript:;':
                 for first_sub2 in first_sub.find_all('li', {"class": "second-depth-list"}):
-                    first_classes[first_sub2.a['href'][-6:]] = {
-                        "category_name": first_sub2.a.get_text(strip=True),
+                    category_id = first_sub2.a['href'][-6:]
+                    category_name = first_sub2.a.get_text(strip=True)
+                    product_list = self._get_product_list_by_category(category_id)
+
+                    first_classes[category_id] = {
+                        "category_name": category_name,
                         "internal_category_id": "",
+                        "product_list": product_list,
                         "children": {},
                     }
             # 나머지 대분류
             else:
-                first_classes[first_sub.a['href'][-6:]] = {
-                    "category_name": first_sub.a.get_text(strip=True),
+                category_id = first_sub.a['href'][-6:]
+                category_name = first_sub.a.get_text(strip=True)
+                product_list = self._get_product_list_by_category(category_id)
+                first_classes[category_id] = {
+                    "category_name": category_name,
                     "internal_category_id": "",
+                    "product_list": product_list,
                     "children": {},
                 }
 
         return first_classes
-
-
-class CoupangCategory:
-
-    def __init__(
-            self,
-            root_category_id='all',
-            file_path='./category_tree.json',
-            max_thread=40,
-            update=True,
-    ):
-        """CoupangCategory 생성자
-        :param root_category_id: 최상위 카테고리 - 자신을 제외한 하부 카테고리 모두 포함하게 됨
-        :type root_category_id: str
-        :param file_path: 카테고리 json 파일 저장할 경로, 디폴트는 './category_tree.json'
-        :type file_path: str
-        :param max_thread: 멀티쓰레딩에 사용할 최대 스레드 개수, 디폴트는 40
-        :type max_thread: int
-        :param update: True이면 파일 존재 여부와 관계 없이 데이터를 새로 받아옴, 디폴트는 True
-        :type update: bool
-        """
-        self.file_path = file_path
-        self.root_category_id = root_category_id
-        # 쿠팡이 카테고리 구조를 변경할 경우 파일과 불일치 문제로 에러 발생 가능 지점
-        cwr = CoupangCategoryFetcher(root_category_id, file_path, update, max_thread)
-        category_tree = cwr.get_category_tree()
-        self.category_tree = category_tree
-
-    def __str__(self):
-        tree_str = json.dumps(self.category_tree, indent=4, ensure_ascii=False)
-        # json to str
-        tree_str = tree_str.replace("\n    ", "\n")
-        tree_str = tree_str.replace('"', "")
-        tree_str = tree_str.replace(',', "")
-        tree_str = tree_str.replace("{", "")
-        tree_str = tree_str.replace("}", "")
-        tree_str = tree_str.replace("    ", " | ")
-        tree_str = tree_str.replace("  ", " ")
-
-        return tree_str
-
-    def __repr__(self):
-        return str(self.category_tree)
-
-    @staticmethod
-    def get_path(target_dict, category_id, prepath=()):
-        for k, v in target_dict.items():
-            path = prepath + (k,)
-            if k == category_id:  # found value
-                return path
-            elif type(v) is dict:  # v is a dict
-                p = CoupangCategory.get_path(v, category_id, path)  # recursive call
-                if p is not None:
-                    return p
-
-    @staticmethod
-    def get_values_by_path(target_dict, paths):
-        return reduce(dict.get, paths, target_dict)
-
-    def get_category_tree(self):
-        return self.category_tree
-
-    def is_exist(self, category_id):
-        if str(self.category_tree).find(category_id) != -1:
-            return True
-        else:
-            return False
-
-    def get_parent(self, category_id):
-        c_path = self.get_path(self.category_tree, category_id)
-        try:
-            parent = c_path[-3]
-        except IndexError:
-            return self.root_category_id
-
-        return parent
-
-    def get_children(self, category_id):
-        if self.is_exist(category_id):
-            children = self.get_values_by_path(
-                self.category_tree,
-                self.get_path(self.category_tree, category_id)
-            )["children"]
-
-            return children
-        else:
-            return False
-
-    def get_data_by_id(self, category_id):
-        c_path = self.get_path(self.category_tree, category_id)
-        data = self.get_values_by_path(self.category_tree, c_path)
-        return data
-
-
-
-# Example Usage
-def demo_coupang_categgory():
-    test_tree = CoupangCategory(update=False)
-
-    print(test_tree.is_exist('194282'))
-    print(test_tree.get_parent('194282'))
-    pprint.pprint(test_tree.get_children('194282'))
-    pprint.pprint(test_tree.get_data_by_id('194282'))
-
-
-

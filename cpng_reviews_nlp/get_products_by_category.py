@@ -8,7 +8,7 @@ from bs4 import BeautifulSoup
 MAX_PRODUCTS_COUNT = 200
 
 # listSize는 60 아니면 120 밖에 안됨
-LIST_SIZE = 120
+PAGE_LIST_SIZE = 120
 
 
 def get_product_list(category_id):
@@ -21,7 +21,8 @@ def get_product_list(category_id):
     }
 
     # sorter 설정할 수 있게 하기
-    category_first_page_url = f"https://www.coupang.com/np/categories/194627?listSize={LIST_SIZE}&page=1&sorter=saleCountDesc"
+    # 정렬 기준이 판매량임
+    category_first_page_url = f"https://www.coupang.com/np/categories/194627?listSize={PAGE_LIST_SIZE}&page=1&sorter=saleCountDesc"
 
     try:
         html = requests.get(category_first_page_url, headers=headers).text
@@ -33,12 +34,12 @@ def get_product_list(category_id):
     max_page = int(target_dict['productTotalPage'])
 
     # 불러올 페이지 수 계산
-    end_page = math.ceil(MAX_PRODUCTS_COUNT/LIST_SIZE) if MAX_PRODUCTS_COUNT/LIST_SIZE < max_page else max_page
+    end_page = math.ceil(MAX_PRODUCTS_COUNT / PAGE_LIST_SIZE) if MAX_PRODUCTS_COUNT / PAGE_LIST_SIZE < max_page else max_page
 
     product_list = []
 
     for page in range(1, end_page+1):
-        url = f"https://www.coupang.com/np/categories/194627?listSize={LIST_SIZE}&page={page}&sorter=saleCountDesc"
+        url = f"https://www.coupang.com/np/categories/194627?listSize={PAGE_LIST_SIZE}&page={page}&sorter=saleCountDesc"
 
         try:
             html = requests.get(url, headers=headers).text

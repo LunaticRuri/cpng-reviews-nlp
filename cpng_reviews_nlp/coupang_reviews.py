@@ -6,6 +6,8 @@ class CoupangReviewsWriter:
     def __repr__(self):
         pass
 
+    def
+
     def to_dict(self):
         pass
 
@@ -23,16 +25,14 @@ class CoupangReviewsReader:
 
 class CoupangReviews:
 
-    def __init__(self):
-        # init 에서 타겟 카테고리 설정
-        pass
+    def __init__(self, category_tree):
+        self.category_tree = category_tree
 
     def __repr__(self):
         pass
 
-    def fetch_reviews_data(self):
-        # 새로 다운로드
-        pass
+    def get_product_list(self):
+
 
     @classmethod
     def is_review_exists(cls):
