@@ -3,7 +3,7 @@ from functools import reduce
 import pprint
 from cpng_reviews_nlp import coupang_category_fetcher as cf
 from cpng_reviews_nlp import coupang_reviews_fetcher as rf
-
+import time
 
 class CoupangData:
     def __init__(
@@ -117,12 +117,15 @@ def demo_coupang_category():
 
 
 def demo_coupang_reviews():
-    test_tree = CoupangData('194282', update=True)
+    t1 = time.time()
+    test_tree = CoupangData(update=True)
     count = 0
     for k, _ in cf.CoupangCategoryFetcher.get_all_category_iter(test_tree.get_category_tree()):
         if k.isdigit():
             count += 2
     print(count)
+    t2 = time.time()
+    print("time:", t2-t1)
 
 
 demo_coupang_reviews()

@@ -163,6 +163,7 @@ class CoupangCategoryFetcher:
                 return self.category_tree
 
         # Multithreading
+
         if self.start_depth == self.ALL:
             print("This will take a long time. (")
             print("Fetching first level categories...")
@@ -239,19 +240,17 @@ class CoupangCategoryFetcher:
         # 정렬 기준이 판매량임
         category_first_page_url = f"https://www.coupang.com/np/categories/194627?" \
                                   f"listSize={self.PAGE_LIST_SIZE}&page=1&sorter=saleCountDesc"
-
-        soup = self.get_soup(category_first_page_url).find("ul", {"class": "baby-product-list"})["data-products"]
+        try:
+            soup = self.get_soup(category_first_page_url).find("ul", {"class": "baby-product-list"})["data-products"]
+        except TypeError:
+            return category_id, []
 
         # 비어 있을 때
         if not soup:
             print(category_id, '@@@@@@@@@@@@@@@@@@@@@@')
             return category_id, []
-        # TODO: 에러 못잡으면 try로 soup 출력
-        try:
-            target_dict = eval(soup)
-        except:
-            print(category_id)
-            print(soup)
+
+        target_dict = eval(soup)
 
         max_page = int(target_dict['productTotalPage'])
 
@@ -296,26 +295,27 @@ class CoupangCategoryFetcher:
 
         # 같은 깊이만 탐색
         sub_li_list = []
-        is_end_of_category = True
         for elem in soup.find_all("li"):
             if eval(elem.label["data-coulog"])["depth"] == str(depth):
                 sub_li_list.append(elem)
-                is_end_of_category = False
 
-        # 카테고리 상위 부분 말단
-        if is_end_of_category:
+        if not sub_li_list:
             return p_category_id, {}
 
         for elem in sub_li_list:
+
             children = {}
 
             if elem["data-campaign-id"] != "":
                 continue
 
             category_name = elem.label.text
-            print(depth, category_name)
+
             # elem["data-linkcode"]는 웹페이지 링크에서 보임
             category_id = elem["data-linkcode"]
+
+            print(depth, category_name, category_id)
+
             # subcategory 접근할 때 필요한 내부 id -> elem["data-component-id"] 로도 접근 가능
             internal_category_id = self.get_internal_id(category_id)
 
