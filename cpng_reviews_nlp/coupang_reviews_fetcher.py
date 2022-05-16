@@ -3,74 +3,124 @@ import requests
 import time
 from bs4 import BeautifulSoup
 import os
-from collections import OrderedDict
-import tqdm
+from tqdm import tqdm
 import json
-import math
+import copy
 
 class CoupangReviewsFetcher:
-    def __init__(self):
-        pass
+    HEADERS = {
+        "User-Agent": 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) '
+                      'Version/15.4 Safari/605.1.15',
+        'Cookie': 'Cookie:bm_sv=IHATECOOKIE;x-coupang-accept-language=ko_KR;',
+        'Referer': f'https://www.coupang.com/',
+    }
+
+    def __init__(
+            self,
+            product_set,
+            reviews_path,
+            reviews_update,
+            max_thread,
+            max_char_count,
+    ):
+        self.product_set = product_set
+        self.max_thread = max_thread
+        self.reviews_update = reviews_update
+        self.max_char_count = max_char_count
+        self.reviews_path = reviews_path
+        self.soup_count = 0
 
     def __repr__(self):
         pass
 
+    def get_soup(self, url):
+        """ url로 가져온 웹사이트를 파싱해 BeautifulSoup 객체로 만든다.
+        :param url: 웹사이트 주소
+        :type url: str
+        :return: 사이트 html 전체의 BeautifulSoup 객체
+        :rtype: BeautifulSoup
+        """
+        try:
+            response = requests.get(url, headers=self.HEADERS)
+        except requests.exceptions.HTTPError as err:
+            raise SystemExit(err)
+
+        time.sleep(0.1)
+
+        html = response.text
+        soup = BeautifulSoup(html, 'lxml')
+
+        self.soup_count += 1
+
+        return soup
+
+    def get_reviews(self):
+
+        get_count = 0
+
+        product_work_set = copy.deepcopy(self.product_set)
+
+        if not self.reviews_update:
+            for elem in self.product_set:
+                if self.is_review_exists(elem):
+                    product_work_set.discard(elem)
+
+        if not product_work_set:
+            return True
+
+        threads = min(self.max_thread, len(product_work_set))
+
+        with ThreadPoolExecutor(max_workers=threads) as executor:
+            futures = []
+            for p_id in product_work_set:
+                futures.append(executor.submit(self.fetch_review_by_product, p_id))
+
+            # tqdm progress bar
+            for f in tqdm(as_completed(futures), total=len(self.product_set)):
+                is_success = f.result()
+                if is_success:
+                    get_count += 1
+
+        print(get_count, len(self.product_set), get_count/len(self.product_set))
+
+    def is_review_exists(self, product_id):
+        if os.path.isfile(os.path.join(self.reviews_path, str(product_id) + '.json')):
+            return True
+        else:
+            return False
+
     # listSize는 60 아니면 120 밖에 안됨 -> 60으로 하면 오버헤드
     PAGE_LIST_SIZE = 120
-
-
-
-    # 아래 상수들은 실제 구현에서는 변경 여지 있음!
-    MAX_THREADS = 30
-    MAX_CHAR_COUNT = 50000
-
-    # 적정 페이지 사이즈 찾기
     REVIEW_PAGE_SIZE = 40
-
     SENTENCE_DSCR = '$'
-    REVIEWS_PATH = '../data/sample_reviews'
 
-    def download_review_by_product(product_id):
-        # Headers에 User-Agent, Cookie 중 bm_sv와 x-coupang-accept-language, 그리고 Referer 있어야 함!
-        headers = {
-            "User-Agent": 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) '
-                          'Version/15.4 Safari/605.1.15',
-            'Cookie': 'Cookie:bm_sv=IHATECOOKIE;x-coupang-accept-language=ko_KR;',
-            'Referer': f'https://www.coupang.com/vp/products/{product_id}?isAddedCart=',
-        }
+    def fetch_review_by_product(self, product_id):
 
         # product_name, category_id, category 가져오기
         # category_id가 내부 카테고리 id가 아니라 외부 배치(링크에 표시된 것) 기준
 
-        # Get product_name 이름 하나 가져오려고 전체를 파싱하는 비효율적 부분
-        # TODO: 상품명 가져오는 경로 개선 생각
-        product_url = "https://www.coupang.com/vp/products/" + product_id
-        try:
-            html = requests.get(product_url, headers=headers).text
-            soup = BeautifulSoup(html, 'lxml')
-            product_name = soup.find("meta", property="og:title")["content"]
-        except requests.exceptions.HTTPError as e:
-            print(f"Http Error where {product_id}:", e)
+        product_url = f"https://www.coupang.com/vp/products/{product_id}"
+        soup = self.get_soup(product_url)
+
+        product_name = soup.find("meta", property="og:title")["content"]
+        if not product_name:
             return False
 
         # Get product_category
+        # 쿠팡 카테고리 구조가 내부와 외부 카테고리 구조가 달라서, CategoryFetcher에서 받아온 것과 다를 수 있음
+        # 뭘 기준으로 해야 할 지는 아직 정하지는 않았음
+        # 외부 기준으로 하면 중복 문제가 발생하지만, 수가 구형 이슈 발생 x
+        # 내부 기준으로 하면 파일 받아오고 그 파일을 바탕으로 다시 구조를 만들어야 함
+
         product_category_url = f"https://www.coupang.com/vp/products/{product_id}/breadcrumb-gnbmenu"
+        soup = self.get_soup(product_category_url)
 
-        try:
-            html = requests.get(product_category_url, headers=headers).text
-            soup = BeautifulSoup(html, 'lxml')
-
-            # root category 제외
-            categories = [(elem.get('href')[-6:], elem.get('title')) for elem in
-                          soup.find("ul", {"id": "breadcrumb"}).find_all("a")[1:]]
-
-        except requests.exceptions.HTTPError as e:
-            print(f"Http Error where {product_id}:", e)
-            return False
+        categories = []
+        for elem in soup.find("ul", {"id": "breadcrumb"}).find_all("a")[1:]:
+            categories.append((elem.get('href')[-6:], elem.get('title')))
 
         # Ger reviews
         reviews = []
-
         # Ratings 1 to 5
         for ratings in range(1, 6):
 
@@ -78,59 +128,41 @@ class CoupangReviewsFetcher:
             target_page = 1
             buffer_char_count = 0
 
-            while buffer_char_count < MAX_CHAR_COUNT:
-                # TODO: sortBy 선택할 수 있게 만들기
-                review_page_url = f'https://www.coupang.com/vp/product/reviews?productId={product_id}&page={str(target_page)}' \
-                                  f'&size={REVIEW_PAGE_SIZE}&sortBy=ORDER_SCORE_ASC' \
+            while buffer_char_count < self.max_char_count:
+                review_page_url = f'https://www.coupang.com/vp/product/reviews?' \
+                                  f'productId={product_id}&page={str(target_page)}' \
+                                  f'&size={self.REVIEW_PAGE_SIZE}&sortBy=ORDER_SCORE_ASC' \
                                   f'&ratings={str(ratings)}&q=&viRoleCode=3&ratingSummary=true'
-                try:
-                    response = requests.get(review_page_url, headers=headers)
-                except requests.exceptions.HTTPError as e:
-                    print(f"Http Error where {product_id} page {target_page}:", e)
-                    return False
 
-                html = response.text
-                soup = BeautifulSoup(html, 'lxml')
+                soup = self.get_soup(review_page_url)
 
                 # review X
                 if soup.find("div", {"class": "sdp-review__article__no-review sdp-review__article__no-review--active"}):
                     break
 
                 # 리뷰 제목과 본문
-                bodies = soup.find_all("div", {"class": ["sdp-review__article__list__headline",
-                                                         "sdp-review__article__list__review__content js_reviewArticleContent"]})
+                bodies = soup.find_all(
+                    "div",
+                    {"class":
+                         ["sdp-review__article__list__headline",
+                          "sdp-review__article__list__review__content js_reviewArticleContent"]})
 
-                buffer_str += "".join(" ".join(elem.text.split()) + SENTENCE_DSCR for elem in bodies).strip()
+                buffer_str += "".join(" ".join(elem.text.split()) + self.SENTENCE_DSCR for elem in bodies).strip()
 
                 target_page += 1
                 buffer_char_count = len(buffer_str)
 
-            time.sleep(0.1)
-
             reviews.append(buffer_str)
 
         # serialize_json
-        json_data = OrderedDict()
-        json_data["product_id"] = product_id
-        json_data["product_name"] = product_name
-        json_data["category"] = [{"category_id": elem[0], "category_name": elem[1]} for elem in categories]
-        json_data["reviews"] = [{"rating": str(i), "data": reviews[i - 1]} for i in range(1, 6)]
+        json_data = {
+            "product_id": product_id,
+            "product_name": product_name,
+            "category": [{"category_id": elem[0], "category_name": elem[1]} for elem in categories],
+            "reviews": [{"rating": str(i), "data": reviews[i - 1]} for i in range(1, 6)],
+        }
 
-        with open(os.path.join(REVIEWS_PATH, product_id + '.json'), 'w', encoding="utf-8") as make_file:
+        with open(os.path.join(self.reviews_path, str(product_id) + '.json'), 'w+', encoding="utf-8") as make_file:
             json.dump(json_data, make_file, ensure_ascii=False, indent=4)
 
-    def download_products(product_list):
-        threads = min(MAX_THREADS, len(product_list))
-
-        with ThreadPoolExecutor(max_workers=threads) as executor:
-            futures = [executor.submit(download_review_by_product, p_id) for p_id in product_list]
-
-            # tqdm progress bar
-            for _ in tqdm(as_completed(futures), total=len(futures)):
-                pass
-
-    def to_dict(self):
-        pass
-
-    def to_json(self):
-        pass
+        return True

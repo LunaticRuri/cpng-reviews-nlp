@@ -107,16 +107,6 @@ class CoupangCategoryFetcher:
         """
         return str(int(category_id) - 100)
 
-    # for test
-    @staticmethod
-    def get_all_category_iter(dictionary):
-        for key, value in dictionary.items():
-            if type(value) is dict:
-                yield key, value
-                yield from CoupangCategoryFetcher.get_all_category_iter(value)
-            else:
-                yield key, value
-
     def read_json_category_tree(self):
         """전달받은 file_path에서 json file을 읽어서 category_tree로 내보낸다.
         :return: 파일이 정상이면 category structure를 나타낼 수 있는 nested dict,
