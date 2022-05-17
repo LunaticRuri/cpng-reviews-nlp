@@ -88,12 +88,12 @@ class CoupangCategoryFetcher:
         except requests.exceptions.HTTPError as err:
             raise SystemExit(err)
 
-        time.sleep(0.1)
-
         html = response.text
         soup = BeautifulSoup(html, 'lxml')
 
         self.soup_count += 1
+
+        time.sleep(0.1)
 
         return soup
 
@@ -228,16 +228,11 @@ class CoupangCategoryFetcher:
 
         # sorter 설정할 수 있게 하기
         # 정렬 기준이 판매량임
-        category_first_page_url = f"https://www.coupang.com/np/categories/194627?" \
+        category_first_page_url = f"https://www.coupang.com/np/categories/{category_id}?" \
                                   f"listSize={self.PAGE_LIST_SIZE}&page=1&sorter=saleCountDesc"
         try:
             soup = self.get_soup(category_first_page_url).find("ul", {"class": "baby-product-list"})["data-products"]
         except TypeError:
-            return category_id, []
-
-        # 비어 있을 때
-        if not soup:
-            print(category_id, '@@@@@@@@@@@@@@@@@@@@@@')
             return category_id, []
 
         target_dict = eval(soup)
@@ -250,13 +245,16 @@ class CoupangCategoryFetcher:
         product_list = []
 
         for page in range(1, end_page + 1):
-            category_page_url = f"https://www.coupang.com/np/categories/194627?" \
+            category_page_url = f"https://www.coupang.com/np/categories/{category_id}?" \
                   f"listSize={CoupangCategoryFetcher.PAGE_LIST_SIZE}&page={page}&sorter=saleCountDesc"
 
             soup = self.get_soup(category_page_url)
 
-            target_dict = eval(soup.find("ul", {"class": "baby-product-list"})["data-products"])
-            target_list = target_dict['indexes']
+            try:
+                target_dict = eval(soup.find("ul", {"class": "baby-product-list"})["data-products"])
+                target_list = target_dict['indexes']
+            except TypeError:
+                target_list = []
 
             product_list.extend(target_list)
 

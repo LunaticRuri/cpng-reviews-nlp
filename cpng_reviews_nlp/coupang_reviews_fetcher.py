@@ -7,6 +7,7 @@ from tqdm import tqdm
 import json
 import copy
 
+
 class CoupangReviewsFetcher:
     HEADERS = {
         "User-Agent": 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) '
@@ -45,14 +46,17 @@ class CoupangReviewsFetcher:
         except requests.exceptions.HTTPError as err:
             raise SystemExit(err)
 
-        time.sleep(0.1)
-
         html = response.text
         soup = BeautifulSoup(html, 'lxml')
 
         self.soup_count += 1
 
+        time.sleep(0.1)
+
         return soup
+
+    def get_soup_count(self):
+        return self.soup_count
 
     def get_reviews(self):
 
@@ -92,7 +96,7 @@ class CoupangReviewsFetcher:
     # listSize는 60 아니면 120 밖에 안됨 -> 60으로 하면 오버헤드
     PAGE_LIST_SIZE = 120
     REVIEW_PAGE_SIZE = 40
-    SENTENCE_DSCR = '$'
+    SENTENCE_DSCR = '\n'
 
     def fetch_review_by_product(self, product_id):
 
