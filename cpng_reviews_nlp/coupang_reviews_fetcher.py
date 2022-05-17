@@ -6,7 +6,7 @@ import os
 from tqdm import tqdm
 import json
 import copy
-
+import urllib3
 
 class CoupangReviewsFetcher:
     HEADERS = {
@@ -24,6 +24,8 @@ class CoupangReviewsFetcher:
             max_thread,
             max_char_count,
     ):
+        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
         self.product_set = product_set
         self.max_thread = max_thread
         self.reviews_update = reviews_update
@@ -42,7 +44,7 @@ class CoupangReviewsFetcher:
         :rtype: BeautifulSoup
         """
         try:
-            response = requests.get(url, headers=self.HEADERS)
+            response = requests.get(url, headers=self.HEADERS, verify=False)
         except requests.exceptions.HTTPError as err:
             raise SystemExit(err)
 
@@ -106,8 +108,9 @@ class CoupangReviewsFetcher:
         product_url = f"https://www.coupang.com/vp/products/{product_id}"
         soup = self.get_soup(product_url)
 
-        product_name = soup.find("meta", property="og:title")["content"]
-        if not product_name:
+        try:
+            product_name = soup.find("meta", property="og:title")["content"]
+        except TypeError:
             return False
 
         # Get product_category

@@ -6,7 +6,7 @@ from bs4 import BeautifulSoup
 import json
 from tqdm import tqdm
 import math
-
+import urllib3
 
 class CoupangCategoryFetcher:
     # TODO: tree는 그래도 놔두고 product_list만 update하는 부분 추가
@@ -43,6 +43,8 @@ class CoupangCategoryFetcher:
         :param max_thread: 최대 스레드 개수 기본 값은 40으로 설정되어 있음
         :type max_thread: int
         """
+
+        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
         self.root_category_id = root_category_id
         self.max_product_count = max_product_count
@@ -84,7 +86,7 @@ class CoupangCategoryFetcher:
         :rtype: BeautifulSoup
         """
         try:
-            response = requests.get(url, headers=CoupangCategoryFetcher.headers)
+            response = requests.get(url, headers=self.headers, verify=False)
         except requests.exceptions.HTTPError as err:
             raise SystemExit(err)
 
