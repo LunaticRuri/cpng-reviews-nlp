@@ -135,8 +135,11 @@ class CoupangReviewsFetcher:
             return False
 
         categories = []
-        for elem in soup.find("ul", {"id": "breadcrumb"}).find_all("a")[1:]:
-            categories.append((elem.get('href')[-6:], elem.get('title')))
+        try:
+            for elem in soup.find("ul", {"id": "breadcrumb"}).find_all("a")[1:]:
+                categories.append((elem.get('href')[-6:], elem.get('title')))
+        except TypeError:
+            return False
 
         # Ger reviews
         reviews = []
