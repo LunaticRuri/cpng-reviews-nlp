@@ -58,7 +58,7 @@ class CoupangData:
                         product_set.add(elem)
 
             # TODO: 나중에 지우기
-            product_set=set(random.choices([*product_set], k=20000))
+            product_set=set(random.choices([*product_set], k=100))
 
             self.rwr = rf.CoupangReviewsFetcher(
                 product_set,

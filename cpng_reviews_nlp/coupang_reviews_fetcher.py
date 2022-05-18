@@ -85,12 +85,12 @@ class CoupangReviewsFetcher:
                 futures.append(executor.submit(self.fetch_review_by_product, p_id))
 
             # tqdm progress bar
-            for f in tqdm(as_completed(futures), total=len(self.product_set)):
+            for f in tqdm(as_completed(futures), total=len(product_work_set)):
                 is_success = f.result()
                 if is_success:
                     get_count += 1
 
-        print(get_count, len(self.product_set), get_count / len(self.product_set))
+        print(get_count, len(product_work_set), get_count / len(product_work_set))
 
     def is_review_exists(self, product_id):
         if os.path.isfile(os.path.join(self.reviews_path, str(product_id) + '.json')):
@@ -112,15 +112,13 @@ class CoupangReviewsFetcher:
         soup = self.get_soup(product_url)
 
         if not soup:
-            return False
-
-        # 19
-        if soup.find('title') == "로그인":
+            print(product_id, ": can't find the page")
             return False
 
         try:
             product_name = soup.find("meta", property="og:title")["content"]
         except TypeError:
+            print(product_id, "name x or 19")
             return False
 
         # Get product_category
@@ -133,6 +131,7 @@ class CoupangReviewsFetcher:
         soup = self.get_soup(product_category_url)
 
         if not soup:
+            print(product_id, ": can't find the category bar 1")
             return False
 
         categories = []
@@ -140,6 +139,7 @@ class CoupangReviewsFetcher:
             for elem in soup.find("ul", {"id": "breadcrumb"}).find_all("a")[1:]:
                 categories.append((elem.get('href')[-6:], elem.get('title')))
         except:  # TypeError, Attribute Error
+            print(product_id, ": can't find the category bar 2")
             return False
 
         # Ger reviews
@@ -164,7 +164,8 @@ class CoupangReviewsFetcher:
                 soup = self.get_soup(review_page_url)
 
                 if not soup:
-                    return
+                    print(product_id, ": can't find the reviews")
+                    return False
 
                 # review X
                 if soup.find("div", {"class": "sdp-review__article__no-review sdp-review__article__no-review--active"}):
