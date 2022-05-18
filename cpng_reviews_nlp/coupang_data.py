@@ -161,7 +161,7 @@ class CoupangData:
                     product_set.add(elem)
 
         output_dict = {
-            "1":"",
+            "1": "",
             "2": "",
             "3": "",
             "4": "",
@@ -184,10 +184,14 @@ def demo_coupang_category():
     #pprint.pprint(test_tree.get_data_by_category('194282'), indent=4)
 
 
-def fetch_all_category():
+def fetch_ramyeon_category():
 
     t1 = time.time()
-    test_tree = CoupangData(category_update=True)
+    test_tree = CoupangData(
+        category_update=True,
+        root_category_id='486355',
+        category_file_path='../ramyeon_category_tree.json',
+    )
     count = 0
     for k, _ in CoupangData.get_all_category_iter(test_tree.get_category_tree()):
         if k.isdigit():
@@ -197,13 +201,15 @@ def fetch_all_category():
     print("time:", t2 - t1)
 
 
-def fetch_all_reviews():
+def fetch_ramyeon_reviews():
     t1 = time.time()
     test_tree = CoupangData(
-        category_file_path="../data/backup/category_tree.json",
+        category_file_path="../ramyeon_category_tree.json",
         category_update=False,
         get_reviews=True,
         reviews_update=False,
+        max_product_count=400,
+        max_char_count=40000,
     )
     print("soup_count: ", test_tree.rwr.get_soup_count())
     t2 = time.time()

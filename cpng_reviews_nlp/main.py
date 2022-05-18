@@ -4,12 +4,12 @@ import coupang_reviews_fetcher as cf
 from os import listdir
 from os.path import isfile, join
 
-if __name__ == '__main__':
+def get_part():
     # run!
     # 폴더 구조 잘 보시고 파일이나 폴더가 없으면 에러 나니까 잘 수정해서 받아주세용
     # 파일 없으면 그냥 빈파일 만드시면 되어요.
 
-    work_ch = 'a'  # a, b, c, ..., 작업 단위
+    work_ch = 'b'  # a, b, c, ..., 작업 단위
     reviews_path = '../data/dividing/tmp_reviews'  # 리뷰 데이터가 저장될 폴더입니다. 다른 작업 단위랑 겹치면 안돼요.
     completed_set = set([f[:-5] for f in listdir(reviews_path) if isfile(join(reviews_path, f))])
 
@@ -37,3 +37,6 @@ if __name__ == '__main__':
         )
 
         crf.get_reviews()
+
+if __name__ == '__main__':
+    coupang_data.fetch_ramyeon_category()
