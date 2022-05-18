@@ -60,7 +60,7 @@ class CoupangReviewsFetcher:
 
         self.soup_count += 1
 
-        time.sleep(0.3)
+        time.sleep(0.5)
 
         return soup
 
