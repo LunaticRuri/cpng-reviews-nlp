@@ -7,6 +7,7 @@ from tqdm import tqdm
 import json
 import copy
 import urllib3
+import pickle
 
 
 class CoupangReviewsFetcher:
@@ -24,6 +25,7 @@ class CoupangReviewsFetcher:
             reviews_update,
             max_thread,
             max_char_count,
+            work_ch = '0',  # tmp
     ):
         urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -33,6 +35,8 @@ class CoupangReviewsFetcher:
         self.max_char_count = max_char_count
         self.reviews_path = reviews_path
         self.soup_count = 0
+
+        self.work_ch = work_ch  #tmp
 
     def __repr__(self):
         pass
@@ -87,7 +91,18 @@ class CoupangReviewsFetcher:
             # tqdm progress bar
             for f in tqdm(as_completed(futures), total=len(product_work_set)):
                 is_success = f.result()
-                if is_success:
+                if type(is_success) is str:
+                    if not self.work_ch == '0':
+                        try:
+                            with open('../data/dividing/_err/err_' + self.work_ch + '.pickle', 'rb') as fp:
+                                err_set = pickle.load(fp)
+                        except EOFError:
+                            err_set = set()
+                        with open('../data/dividing/_err/err_' + self.work_ch + '.pickle', 'wb') as fp:
+                            err_set.add(is_success)
+                            pickle.dump(err_set,fp)
+
+                else:
                     get_count += 1
 
         print(get_count, len(product_work_set), get_count / len(product_work_set))
@@ -113,13 +128,13 @@ class CoupangReviewsFetcher:
 
         if not soup:
             print(product_id, ": can't find the page")
-            return False
+            return str(product_id)
 
         try:
             product_name = soup.find("meta", property="og:title")["content"]
         except TypeError:
             print(product_id, "name x or 19")
-            return False
+            return str(product_id)
 
         # Get product_category
         # 쿠팡 카테고리 구조가 내부와 외부 카테고리 구조가 달라서, CategoryFetcher에서 받아온 것과 다를 수 있음
@@ -132,7 +147,7 @@ class CoupangReviewsFetcher:
 
         if not soup:
             print(product_id, ": can't find the category bar 1")
-            return False
+            return str(product_id)
 
         categories = []
         try:
@@ -140,7 +155,7 @@ class CoupangReviewsFetcher:
                 categories.append((elem.get('href')[-6:], elem.get('title')))
         except:  # TypeError, Attribute Error
             print(product_id, ": can't find the category bar 2")
-            return False
+            return str(product_id)
 
         # Ger reviews
         reviews = []
@@ -165,7 +180,7 @@ class CoupangReviewsFetcher:
 
                 if not soup:
                     print(product_id, ": can't find the reviews")
-                    return False
+                    return str(product_id)
 
                 # review X
                 if soup.find("div", {"class": "sdp-review__article__no-review sdp-review__article__no-review--active"}):
