@@ -4,6 +4,8 @@ import pprint
 from cpng_reviews_nlp import coupang_category_fetcher as cf
 from cpng_reviews_nlp import coupang_reviews_fetcher as rf
 import time
+import os
+import random
 
 
 class CoupangData:
@@ -13,9 +15,9 @@ class CoupangData:
             max_product_count=200,
             max_char_count=20000,
             max_thread=40,
-            category_file_path='../data/category_tree.json',  # TODO: 백업하기
-            reviews_file_path='../data/sample_reviews',  # TODO: 디폴트 경로는 추후에 수정
-            category_update=True,
+            category_file_path='../data/backup/category_tree.json',
+            reviews_file_path='../data/reviews',  # TODO: 디폴트 경로는 추후에 수정
+            category_update=False,
             get_reviews=False,
             reviews_update=False,  # TODO: T,F 나중에 결정 하기
     ):
@@ -46,15 +48,18 @@ class CoupangData:
 
         self.category_tree = self.cwr.get_category_tree()
 
-        product_set = set()
+        self.reviews_file_path = reviews_file_path
 
-        for _, v in self.get_all_category_iter(self.category_tree):
-            if not v:
-                pass
-            if type(v) is list:
-                for elem in v:
-                    product_set.add(elem)
         if get_reviews:
+            product_set = set()
+            for _, v in self.get_all_category_iter(self.category_tree):
+                if type(v) is list:
+                    for elem in v:
+                        product_set.add(elem)
+
+            # TODO: 나중에 지우기
+            product_set=set(random.choices([*product_set], k=15000))
+
             self.rwr = rf.CoupangReviewsFetcher(
                 product_set,
                 reviews_file_path,
@@ -92,7 +97,6 @@ class CoupangData:
                 if p is not None:
                     return p
 
-    # for test
     @staticmethod
     def get_all_category_iter(dictionary):
         for key, value in dictionary.items():
@@ -130,29 +134,58 @@ class CoupangData:
         else:
             return False
 
-    def get_reviews_by_category(self):
-        # 하위 모두 포함
-
-        return jad
-
-    def get_data_by_id(self, category_id):
+    def get_data_by_category(self, category_id):
         c_path = self.get_path(self.category_tree, category_id)
-        data = self.get_values_by_path(self.category_tree, c_path)
+        data = self.get_values_by_path(c_path)
         return data
+
+    def get_review_dict_from_file(self, product_id):
+        try:
+            with open(os.path.join(self.reviews_file_path, str(product_id) + '.json'), 'r', encoding="utf-8") as f:
+                output_dict = json.load(f, ensure_ascii=False, indent=4)
+        except FileNotFoundError:
+            raise SystemExit("Can't find the file.")
+        return output_dict
+
+    def get_reviews_by_category(self, category_id):
+        # 하위 모두 포함
+        # 별점 별로 나뉨 rtype: dictionary
+
+        children = self.get_children(category_id)
+
+        product_set = set(self.get_data_by_category(category_id)["product_list"])
+
+        for _, v in self.get_all_category_iter(self.get_children(category_id)):
+            if type(v) is list:
+                for elem in v:
+                    product_set.add(elem)
+
+        output_dict = {
+            "1":"",
+            "2": "",
+            "3": "",
+            "4": "",
+            "5": "",
+        }
+
+        #for p_id in product_set:
+
 
 
 # Example Usage
 
+
 def demo_coupang_category():
-    test_tree = CoupangData(category_update=True)
+    test_tree = CoupangData(category_update=False)
 
     print(test_tree.is_exist('194282'))
     print(test_tree.get_parent('194282'))
-    pprint.pprint(test_tree.get_children('194282'))
-    pprint.pprint(test_tree.get_data_by_id('194282'))
+    #pprint.pprint(test_tree.get_children('194282'), indent=4)
+    #pprint.pprint(test_tree.get_data_by_category('194282'), indent=4)
 
 
 def fetch_all_category():
+
     t1 = time.time()
     test_tree = CoupangData(category_update=True)
     count = 0
@@ -164,4 +197,16 @@ def fetch_all_category():
     print("time:", t2 - t1)
 
 
-fetch_all_category()
+def fetch_all_reviews():
+    t1 = time.time()
+    test_tree = CoupangData(
+        category_file_path="../data/backup/category_tree.json",
+        category_update=False,
+        get_reviews=True,
+        reviews_update=False,
+    )
+    print("soup_count: ", test_tree.rwr.get_soup_count())
+    t2 = time.time()
+    print("time:", t2 - t1)
+
+    # saving owo
