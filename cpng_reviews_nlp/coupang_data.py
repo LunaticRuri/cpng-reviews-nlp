@@ -15,7 +15,7 @@ class CoupangData:
             max_product_count=200,
             max_char_count=20000,
             max_thread=40,
-            category_file_path='../data/backup/category_tree.json',
+            category_file_path='../category_tree.json',
             reviews_file_path='../data/reviews',  # TODO: 디폴트 경로는 추후에 수정
             category_update=False,
             get_reviews=False,
@@ -58,7 +58,7 @@ class CoupangData:
                         product_set.add(elem)
 
             # TODO: 나중에 지우기
-            product_set=set(random.choices([*product_set], k=1000))
+            product_set=set(random.choices([*product_set], k=40000))
 
             self.rwr = rf.CoupangReviewsFetcher(
                 product_set,
