@@ -8,6 +8,7 @@ import json
 import copy
 import urllib3
 
+
 class CoupangReviewsFetcher:
     HEADERS = {
         "User-Agent": 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) '
@@ -89,7 +90,7 @@ class CoupangReviewsFetcher:
                 if is_success:
                     get_count += 1
 
-        print(get_count, len(self.product_set), get_count/len(self.product_set))
+        print(get_count, len(self.product_set), get_count / len(self.product_set))
 
     def is_review_exists(self, product_id):
         if os.path.isfile(os.path.join(self.reviews_path, str(product_id) + '.json')):
@@ -138,7 +139,7 @@ class CoupangReviewsFetcher:
         try:
             for elem in soup.find("ul", {"id": "breadcrumb"}).find_all("a")[1:]:
                 categories.append((elem.get('href')[-6:], elem.get('title')))
-        except TypeError:
+        except:  # TypeError, Attribute Error
             return False
 
         # Ger reviews
