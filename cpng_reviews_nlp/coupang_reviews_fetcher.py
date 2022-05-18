@@ -94,11 +94,11 @@ class CoupangReviewsFetcher:
                 if type(is_success) is str:
                     if not self.work_ch == '0':
                         try:
-                            with open('../data/dividing/_err/err_' + self.work_ch + '.pickle', 'rb') as fp:
+                            with open('../data/dividing/err_' + self.work_ch + '.pickle', 'rb') as fp:
                                 err_set = pickle.load(fp)
                         except EOFError:
                             err_set = set()
-                        with open('../data/dividing/_err/err_' + self.work_ch + '.pickle', 'wb') as fp:
+                        with open('../data/dividing/err_' + self.work_ch + '.pickle', 'wb') as fp:
                             err_set.add(is_success)
                             pickle.dump(err_set,fp)
 
