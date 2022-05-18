@@ -58,7 +58,7 @@ class CoupangData:
                         product_set.add(elem)
 
             # TODO: 나중에 지우기
-            product_set=set(random.choices([*product_set], k=100))
+            #product_set=set(random.choices([*product_set], k=100))
 
             self.rwr = rf.CoupangReviewsFetcher(
                 product_set,
@@ -205,6 +205,7 @@ def fetch_ramyeon_reviews():
     t1 = time.time()
     test_tree = CoupangData(
         category_file_path="../ramyeon_category_tree.json",
+        reviews_file_path="../data/tmp_reviews",
         category_update=False,
         get_reviews=True,
         reviews_update=False,

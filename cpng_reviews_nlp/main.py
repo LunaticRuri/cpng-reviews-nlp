@@ -39,4 +39,4 @@ def get_part():
         crf.get_reviews()
 
 if __name__ == '__main__':
-    coupang_data.fetch_ramyeon_category()
+    coupang_data.fetch_ramyeon_reviews()
