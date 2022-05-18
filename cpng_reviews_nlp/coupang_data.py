@@ -58,7 +58,7 @@ class CoupangData:
                         product_set.add(elem)
 
             # TODO: 나중에 지우기
-            product_set=set(random.choices([*product_set], k=15000))
+            product_set=set(random.choices([*product_set], k=1000))
 
             self.rwr = rf.CoupangReviewsFetcher(
                 product_set,
@@ -208,5 +208,3 @@ def fetch_all_reviews():
     print("soup_count: ", test_tree.rwr.get_soup_count())
     t2 = time.time()
     print("time:", t2 - t1)
-
-    # saving owo
