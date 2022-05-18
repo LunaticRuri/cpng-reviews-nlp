@@ -47,13 +47,15 @@ class CoupangReviewsFetcher:
             response = requests.get(url, headers=self.HEADERS, verify=False)
         except requests.exceptions.HTTPError as err:
             raise SystemExit(err)
+        except requests.exceptions.ConnectionError:
+            return False
 
         html = response.text
         soup = BeautifulSoup(html, 'lxml')
 
         self.soup_count += 1
 
-        time.sleep(0.1)
+        time.sleep(0.3)
 
         return soup
 
@@ -108,6 +110,13 @@ class CoupangReviewsFetcher:
         product_url = f"https://www.coupang.com/vp/products/{product_id}"
         soup = self.get_soup(product_url)
 
+        if not soup:
+            return False
+
+        # 19
+        if soup.find('title') == "로그인":
+            return False
+
         try:
             product_name = soup.find("meta", property="og:title")["content"]
         except TypeError:
@@ -121,6 +130,9 @@ class CoupangReviewsFetcher:
 
         product_category_url = f"https://www.coupang.com/vp/products/{product_id}/breadcrumb-gnbmenu"
         soup = self.get_soup(product_category_url)
+
+        if not soup:
+            return False
 
         categories = []
         for elem in soup.find("ul", {"id": "breadcrumb"}).find_all("a")[1:]:
@@ -136,12 +148,19 @@ class CoupangReviewsFetcher:
             buffer_char_count = 0
 
             while buffer_char_count < self.max_char_count:
+
+                if target_page > 20:
+                    break
+
                 review_page_url = f'https://www.coupang.com/vp/product/reviews?' \
                                   f'productId={product_id}&page={str(target_page)}' \
                                   f'&size={self.REVIEW_PAGE_SIZE}&sortBy=ORDER_SCORE_ASC' \
                                   f'&ratings={str(ratings)}&q=&viRoleCode=3&ratingSummary=true'
 
                 soup = self.get_soup(review_page_url)
+
+                if not soup:
+                    return
 
                 # review X
                 if soup.find("div", {"class": "sdp-review__article__no-review sdp-review__article__no-review--active"}):
