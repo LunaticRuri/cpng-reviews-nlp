@@ -95,7 +95,7 @@ class CoupangCategoryFetcher:
 
         self.soup_count += 1
 
-        time.sleep(0.1)
+        time.sleep(0.2)
 
         return soup
 
