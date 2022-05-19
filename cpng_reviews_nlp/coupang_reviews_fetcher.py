@@ -133,7 +133,7 @@ class CoupangReviewsFetcher:
         try:
             product_name = soup.find("meta", property="og:title")["content"]
         except TypeError:
-            print(product_id, "name x or 19")
+            print(product_id, "Access denied or 19")
             return str(product_id)
 
         # Get product_category
