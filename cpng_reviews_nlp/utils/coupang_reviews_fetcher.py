@@ -36,7 +36,7 @@ class CoupangReviewsFetcher:
         self.reviews_path = reviews_path
         self.soup_count = 0
 
-        self.work_ch = work_ch  #tmp
+        self.work_ch = work_ch
 
     def __repr__(self):
         pass
@@ -48,6 +48,7 @@ class CoupangReviewsFetcher:
         :return: 사이트 html 전체의 BeautifulSoup 객체
         :rtype: BeautifulSoup
         """
+
         try:
             response = requests.get(url, headers=self.HEADERS, verify=False)
         except requests.exceptions.HTTPError as err:
@@ -94,11 +95,11 @@ class CoupangReviewsFetcher:
                 if type(is_success) is str:
                     if not self.work_ch == '0':
                         try:
-                            with open('../data/dividing/err_' + self.work_ch + '.pickle', 'rb') as fp:
+                            with open('../../data/dividing/err_' + self.work_ch + '.pickle', 'rb') as fp:
                                 err_set = pickle.load(fp)
                         except EOFError:
                             err_set = set()
-                        with open('../data/dividing/err_' + self.work_ch + '.pickle', 'wb') as fp:
+                        with open('../../data/dividing/err_' + self.work_ch + '.pickle', 'wb') as fp:
                             err_set.add(is_success)
                             pickle.dump(err_set,fp)
 

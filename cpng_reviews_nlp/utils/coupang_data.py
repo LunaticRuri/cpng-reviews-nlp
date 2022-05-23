@@ -1,11 +1,8 @@
 import json
 from functools import reduce
-import pprint
-from cpng_reviews_nlp import coupang_category_fetcher as cf
-from cpng_reviews_nlp import coupang_reviews_fetcher as rf
+from cpng_reviews_nlp.utils import coupang_reviews_fetcher as rf, coupang_category_fetcher as cf
 import time
 import os
-import random
 
 
 class CoupangData:
