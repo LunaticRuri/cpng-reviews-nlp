@@ -11,7 +11,7 @@ def preprocessing(raw_text):
 
 
 ll = ['0', 'a', 'b', 'c']
-path = "../data/reviews/0abc.json"
+path = "../../data/reviews/0abc.json"
 
 with open(path, 'r') as f:
     product_reviews = json.load(f)
