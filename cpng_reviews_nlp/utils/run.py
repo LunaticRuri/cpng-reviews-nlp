@@ -20,7 +20,7 @@ def get_part():
     try:
         # 처음에 'err_a.pickle' 이런 식으로 빈파일 만들어 놓으시면 되어요.
         with open('../../data/dividing/err_' + work_ch + '.pickle', 'rb') as fp:
-            err_set =set(pickle.load(fp))
+            err_set = set(pickle.load(fp))
     except EOFError:
         err_set = set()
 

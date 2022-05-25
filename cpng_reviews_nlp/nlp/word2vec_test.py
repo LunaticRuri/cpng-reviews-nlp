@@ -1,51 +1,81 @@
 from konlpy.tag import Mecab
-import json
+import pandas as pd
+from gensim.models.doc2vec import TaggedDocument
+from gensim.models import doc2vec
 from tqdm import tqdm
 import re
-from gensim.models import Word2Vec
+import json
+from hanspell import spell_checker
+
+mecab = Mecab()
 
 
 def preprocessing(raw_text):
-    output = re.sub(r'[^ㄱ-ㅣ가-힣ㅣ\s+]', "", raw_text)
-    return output
+    r_hangul = re.sub(r'[^ㄱ-ㅣ가-힣ㅣ\s+]', "", raw_text)
+    return r_hangul
 
 
-ll = ['0', 'a', 'b', 'c']
-path = "../../data/reviews/0abc.json"
+def stopword(word_tokenize):
+    # TODO: stopwords는 나중에 따로 빼도 될 듯
+    stopwords = ['의', '가', '이', '은', '들', '는', '좀', '잘', '걍', '과', '도', '를', '으로', '자', '에', '와', '한', '하다']
+    result = []
 
-with open(path, 'r') as f:
+    for w in word_tokenize:
+        if w not in stopwords:
+            result.append(w)
+
+    return result
+
+
+reviews_path = "./drive/MyDrive/data/0abc.json"
+
+with open(reviews_path, 'r') as f:
     product_reviews = json.load(f)
 
-reviews_list = []
+# id, name, reviews
+product_df = pd.DataFrame(columns=['id', 'name', 'reviews'])
+product_df.set_index('id')
 
 for elem in tqdm(product_reviews.values()):
+
+    sum_of_reviews: str = ""
+
     for pair in elem["reviews"]:
         data = pair["data"]
         if not data:
             continue
 
-        r_split = [preprocessing(review) for review in data.split("\n")]
+        sum_of_reviews += preprocessing(data)
 
-        reviews_list.extend(r_split)
+    product_df.loc[product_df.shape[0]] = [elem['product_id'], elem['product_name'], sum_of_reviews]
 
-# 불용어 정의
-stopwords = ['의', '가', '이', '은', '들', '는', '좀', '잘', '걍', '과', '도', '를', '으로', '자', '에', '와', '한', '하다']
+tagged_corpus_list = []
 
-# 형태소 분석기 mecab를 사용한 토큰화 작업 (다소 시간 소요)
-mecab = Mecab()
+for index, row in tqdm(product_df.iterrows(), total=len(product_df)):
+    text = stopword(mecab.morphs(spell_checker.check(row['reviews'])))
+    tag = row['id']
 
-tokenized_data = []
-for sentence in tqdm(reviews_list):
-    tokenized_sentence = mecab.morphs(sentence)  # 토큰화
-    stopwords_removed_sentence = [word for word in tokenized_sentence if not word in stopwords]  # 불용어 제거
-    tokenized_data.append(stopwords_removed_sentence)
+    tagged_corpus_list.append(TaggedDocument(tags=[tag], words=text))
 
-model = Word2Vec(sentences=tokenized_data, vector_size=300, window=5, min_count=5, workers=4, sg=0)
+model = doc2vec.Doc2Vec(
+    vector_size=300,
+    alpha=0.025,
+    min_alpha=0.025,
+    workers=8,
+    window=8
+)
 
-print(model.wv.vectors.shape)
-print(model.wv.most_similar("라면"))
-print(model.wv.most_similar("화장품"))
+model.build_vocab(tagged_corpus_list)
+print(f"Tag Size: {len(model.docvecs.doctags.keys())}", end=' / ')
 
-# https://ngio.co.kr/5291
-model.wv.save_word2vec_format('cpng0abc')
-# new_model = gensim.models.Word2Vec.load('/tmp/mymodel')
+model.train(tagged_corpus_list, total_examples=model.corpus_count, epochs=50)
+
+model.save('doc2vec_0abc')
+
+similar_product = model.docvecs.most_similar('1067207282')
+
+print(similar_product)
+
+similar_product = model.docvecs.most_similar('6455913779')
+
+print(similar_product)
