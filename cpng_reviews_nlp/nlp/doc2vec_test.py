@@ -1,11 +1,10 @@
 from konlpy.tag import Mecab
-import pandas as pd
-from gensim.models.doc2vec import TaggedDocument
-from gensim.models import doc2vec
 from tqdm import tqdm
 import re
 import json
-from hanspell import spell_checker
+import pickle
+from gensim.models import doc2vec
+from gensim.models.doc2vec import TaggedLineDocument
 
 mecab = Mecab()
 
@@ -27,55 +26,117 @@ def stopword(word_tokenize):
     return result
 
 
-reviews_path = "../../data/reviews/0abc.json"
-
-with open(reviews_path, 'r') as f:
-    product_reviews = json.load(f)
-
-# id, name, reviews
-product_df = pd.DataFrame(columns=['id', 'name', 'reviews'])
-product_df.set_index('id')
-
-for elem in tqdm(product_reviews.values()):
-
+def json_to_list(json_elem):
     sum_of_reviews: str = ""
 
-    for pair in elem["reviews"]:
+    for pair in json_elem["reviews"]:
         data = pair["data"]
         if not data:
             continue
+        pp = preprocessing(data)
+        if len(pp) >= 8000:
+            pp = pp[:8000]
+        sum_of_reviews += pp
 
-        sum_of_reviews += preprocessing(data)
+    if len(sum_of_reviews) >= 10000:
+        output_list = [json_elem['product_id'], json_elem['product_name'], sum_of_reviews]
+    else:
+        output_list = []
 
-    product_df.loc[product_df.shape[0]] = [elem['product_id'], elem['product_name'], sum_of_reviews]
+    return output_list
 
-tagged_corpus_list = []
 
-for index, row in tqdm(product_df.iterrows(), total=len(product_df)):
-    text = stopword(mecab.morphs(spell_checker.check(row['reviews'])))
-    tag = row['id']
+def reviews_tokenizer(text):
+    """
+    output_text = stopword(
+        mecab.morphs(spell_checker.check(input_row['reviews']).checked)
+        )
+    """
+    output_text = stopword(mecab.morphs(text))
 
-    tagged_corpus_list.append(TaggedDocument(tags=[tag], words=text))
+    return output_text
 
-model = doc2vec.Doc2Vec(
-    vector_size=300,
-    alpha=0.025,
-    min_alpha=0.025,
-    workers=8,
-    window=8
-)
 
-model.build_vocab(tagged_corpus_list)
-print(f"Tag Size: {len(model.docvecs.doctags.keys())}", end=' / ')
+def new_model():
+    reviews_path = "../data/reviews/0abc.json"
 
-model.train(tagged_corpus_list, total_examples=model.corpus_count, epochs=50)
+    with open(reviews_path, 'r') as f:
+        product_reviews = json.load(f)
 
-model.save('doc2vec_0abc')
+    # id, name, reviews
 
-similar_product = model.docvecs.most_similar('1067207282')
+    th_list = []
 
-print(similar_product)
+    for elem in tqdm(product_reviews.values(), total=len(product_reviews)):
+        result = json_to_list(elem)
+        if result:
+            th_list.append(result)
 
-similar_product = model.docvecs.most_similar('6455913779')
+    print("th_list len", len(th_list))
 
-print(similar_product)
+    tagged_corpus_list = []
+
+    tags_order = []
+
+    for elem in tqdm(th_list, total=len(th_list)):
+        tag_name_pair = (elem[0], elem[1])
+        text = ' '.join(reviews_tokenizer(elem[2]))
+
+        tags_order.append(tag_name_pair)
+        tagged_corpus_list.append(text)
+
+    print(tags_order)
+
+    with open("cpng_tagged_line_document.space", 'w+') as fp:
+        for item in tagged_corpus_list:
+            fp.write(item + '\n')
+
+    print("***********************************")
+
+    tagged_docs = TaggedLineDocument("cpng_tagged_line_document.space")
+
+    model = doc2vec.Doc2Vec(
+        vector_size=300,
+        alpha=0.025,
+        min_alpha=0.025,
+        workers=8,
+        window=5,
+        min_count=5,
+    )
+
+    print("model.build_vocab")
+
+    model.build_vocab(tagged_docs)
+
+    print("model.train()")
+
+    model.train(tagged_docs, total_examples=model.corpus_count, epochs=20)
+
+    print("Saving data...")
+
+    with open("cpng_0abc_doc2vec_model.pickle", 'wb') as fp:
+        pickle.dump(model, fp)
+    with open("cpng_0abc_doc2vec_model_tags_order.pickle", 'wb') as fp:
+        pickle.dump(tags_order, fp)
+
+
+def open_model_tags_order():
+    with open("cpng_0abc_doc2vec_model.pickle", 'rb') as fp:
+        model = pickle.load(fp)
+
+    with open("cpng_0abc_doc2vec_model_tags_order.pickle", 'rb') as fp:
+        tags_order = pickle.load(fp)
+
+    return model, tags_order
+
+
+def run(model, tags_order):
+    index = 100
+    similar_product = model.docvecs.most_similar(index)
+    print(tags_order[index])
+    for elem in similar_product:
+        print(tags_order[elem[0]], elem[1])
+
+
+model, tags_order = open_model_tags_order()
+run(model, tags_order)
