@@ -137,7 +137,7 @@ class CoupangReviewsFetcher:
             print(product_id, "Access denied or 19")
             return str(product_id)
 
-        # Get product_category
+        """ 제외함
         # 쿠팡 카테고리 구조가 내부와 외부 카테고리 구조가 달라서, CategoryFetcher에서 받아온 것과 다를 수 있음
         # 뭘 기준으로 해야 할 지는 아직 정하지는 않았음
         # 외부 기준으로 하면 중복 문제가 발생하지만, 수가 구형 이슈 발생 x
@@ -157,6 +157,7 @@ class CoupangReviewsFetcher:
         except:  # TypeError, Attribute Error
             print(product_id, ": can't find the category bar 2")
             return str(product_id)
+        """
 
         # Ger reviews
         reviews = []
@@ -205,7 +206,7 @@ class CoupangReviewsFetcher:
         json_data = {
             "product_id": product_id,
             "product_name": product_name,
-            "category": [{"category_id": elem[0], "category_name": elem[1]} for elem in categories],
+            # "category": [{"category_id": elem[0], "category_name": elem[1]} for elem in categories],
             "reviews": [{"rating": str(i), "data": reviews[i - 1]} for i in range(1, 6)],
         }
 
