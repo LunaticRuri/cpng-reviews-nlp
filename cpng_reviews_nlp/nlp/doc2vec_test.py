@@ -121,10 +121,10 @@ def new_model():
 
 
 def open_model_tags_order():
-    with open("cpng_0abc_doc2vec_model.pickle", 'rb') as fp:
+    with open("../data/model/cpng_0abcde/cpng_0abcde_doc2vec_model.pickle", 'rb') as fp:
         model = pickle.load(fp)
 
-    with open("cpng_0abc_doc2vec_model_tags_order.pickle", 'rb') as fp:
+    with open("../data/model/cpng_0abcde/cpng_0abcde_doc2vec_model_tags_order.pickle", 'rb') as fp:
         tags_order = pickle.load(fp)
 
     return model, tags_order
