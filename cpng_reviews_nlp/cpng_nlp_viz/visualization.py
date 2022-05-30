@@ -17,6 +17,8 @@ import pickle
 import random
 import queue
 
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
 
 def build_network_structure(start_product_id):
     dv = Doc2vecModel()
@@ -58,8 +60,8 @@ def build_network_structure(start_product_id):
 
 class Doc2vecModel:
     def __init__(self):
-        self.model_path = "../../data/model/cpng_0abcde/cpng_0abcde_doc2vec_model.pickle"
-        self.model_tags_order_path = "../../data/model/cpng_0abcde/cpng_0abcde_doc2vec_model_tags_order.pickle"
+        self.model_path = "./model/cpng_0abcdef_doc2vec_model.pickle"
+        self.model_tags_order_path = "./model/cpng_0abcdef_doc2vec_model_tags_order.pickle"
         self.model, self.tags_order = self.open_model_tags_order()
         self.search_table_by_id = \
             {str(elem[0]): {"index": index, "name": elem[1]} for elem, index in
@@ -114,7 +116,70 @@ class Doc2vecModel:
 
 class EventHandler:
     def __init__(self):
-        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+        pass
+
+    @staticmethod
+    def update_network_product_desc(target_id, target_name):
+        center_style = \
+            """
+            <style>
+            p {text-align: center;}
+            div {text-align: center;}
+            table {text-align: center;}
+            </style>
+            """
+
+        network_div.text = \
+            f"""
+            {center_style}
+            <table border="1">
+            <tr>
+            <!-- First row -->
+            <td><b>Product ID</b></td><td>{target_id}</td>
+            </tr>
+            <tr>
+            <!-- Second row -->
+            <td><b>Name</b></td><td>{target_name}</td>
+            </tr>
+            <tr>
+            <!-- Third row -->
+            <td><b>Link</b></td><td><a href="https://www.coupang.com/vp/products/{target_id}">쿠팡 상품 페이지</a></td>
+            </tr>
+            <tr>
+            </table>
+            """
+
+    @staticmethod
+    def update_density_div(network):
+        density_div.text = f"<b>Density: </b>{nx.density(network)}"
+
+
+    @staticmethod
+    def update_network_plot(target_id):
+        new_plot = Plot(title="CPNG_NLP_VS", width=1400, height=650, x_range=Range1d(-1.1, 1.1),
+                        y_range=Range1d(-1.1, 1.1))
+
+        new_g = build_network_structure(target_id)
+
+        # density div update
+        EventHandler.update_density_div(new_g)
+
+        # toolbar
+        new_plot.add_tools(node_hover_tool, TapTool(), BoxZoomTool(), ResetTool())
+
+        # graph renderer networkx
+        new_graph_renderer = from_networkx(new_g, nx.spring_layout, scale=1, center=(0, 0))
+
+        new_graph_renderer.node_renderer.glyph = Circle(size=10, fill_color=Spectral4[0])
+        new_graph_renderer.edge_renderer.glyph = MultiLine(
+            line_color="black",
+            line_alpha=0.8,
+            line_width=1
+        )
+
+        new_plot.renderers.append(new_graph_renderer)
+
+        network_layout.children[2] = new_plot
 
     @staticmethod
     def network_search_btn_handler():
@@ -124,31 +189,10 @@ class EventHandler:
             target_id = target_input
             target_name = d2v.get_name_by_product_id(target_id)
 
-            network_div.text = \
-                f"""<b>Product ID: </b> {target_id} <br><b>Name: </b> {target_name}<br>""" \
-                f"""<b>Link: </b><a href="https://www.coupang.com/vp/products/{target_id}">쿠팡 상품 페이지</a>"""
+            EventHandler.update_network_product_desc(target_id, target_name)
 
-            new_plot = Plot(title="CPNG_NLP_VS", width=1400, height=650, x_range=Range1d(-1.1, 1.1),
-                            y_range=Range1d(-1.1, 1.1))
+            EventHandler.update_network_plot(target_id)
 
-            new_G = build_network_structure(target_id)
-
-            # toolbar
-            new_plot.add_tools(node_hover_tool, TapTool(), BoxZoomTool(), ResetTool())
-
-            # graph renderer networkx
-            new_graph_renderer = from_networkx(new_G, nx.spring_layout, scale=1, center=(0, 0))
-
-            new_graph_renderer.node_renderer.glyph = Circle(size=10, fill_color=Spectral4[0])
-            new_graph_renderer.edge_renderer.glyph = MultiLine(
-                line_color="black",
-                line_alpha=0.8,
-                line_width=1
-            )
-
-            new_plot.renderers.append(new_graph_renderer)
-
-            network_layout.children[2] = new_plot
         else:
             matching = d2v.get_products_by_keyword(target_input)
             if not matching:
@@ -158,44 +202,24 @@ class EventHandler:
                 target_id = target_product[0]
                 target_name = target_product[1]
 
-                network_div.text = \
-                    f"""<b>Product ID: </b> {target_id} <br><b>Name: </b> {target_name}<br>""" \
-                    f"""<b>Link: </b><a href="https://www.coupang.com/vp/products/{target_id}">쿠팡 상품 페이지</a>"""
+                EventHandler.update_network_product_desc(target_id, target_name)
 
-                new_plot = Plot(title="CPNG_NLP_VS", width=1400, height=650, x_range=Range1d(-1.1, 1.1),
-                                y_range=Range1d(-1.1, 1.1))
+                EventHandler.update_network_plot(target_id)
 
-                new_G = build_network_structure(target_id)
-
-                # toolbar
-                new_plot.add_tools(node_hover_tool, TapTool(), BoxZoomTool(), ResetTool())
-
-                # graph renderer networkx
-                new_graph_renderer = from_networkx(new_G, nx.spring_layout, scale=1, center=(0, 0))
-
-                new_graph_renderer.node_renderer.glyph = Circle(size=10, fill_color=Spectral4[0])
-                new_graph_renderer.edge_renderer.glyph = MultiLine(
-                    line_color="black",
-                    line_alpha=0.8,
-                    line_width=1
-                )
-
-                new_plot.renderers.append(new_graph_renderer)
-
-                network_layout.children[2] = new_plot
 
     @staticmethod
-    def get_soup(url):
+    def get_product_img_url(product_id):
         HEADERS = {
             "User-Agent": 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) '
                           'Version/15.4 Safari/605.1.15',
             'Cookie': 'Cookie:bm_sv=IHATECOOKIE;x-coupang-accept-language=ko_KR;',
             'Referer': f'https://www.coupang.com/',
         }
+        product_url = f"https://www.coupang.com/vp/products/{product_id}"
 
         try:
-            response = requests.get(url, headers=HEADERS, verify=False)
-        except requests.exceptions.HTTPError as err:
+            response = requests.get(product_url, headers=HEADERS, verify=False)
+        except requests.exceptions.HTTPError:
             return False
         except requests.exceptions.ConnectionError:
             return False
@@ -203,23 +227,56 @@ class EventHandler:
         html = response.text
         soup = BeautifulSoup(html, 'lxml')
 
-        return soup
-
-    @staticmethod
-    def get_product_img_url(product_id):
-        product_url = f"https://www.coupang.com/vp/products/{product_id}"
-        soup = EventHandler.get_soup(product_url)
         if not soup:
             return False
+
         target_soup = soup.find("img", {"class": "prod-image__detail"})
+
         # print(target_soup)
         if not target_soup:
             return False
+
         img_url = "https:" + target_soup['src']
         return img_url
 
     @staticmethod
-    def update_datatable(target_id, target_name):
+    def update_product_desc(target_id, target_name):
+
+        img_url = EventHandler.get_product_img_url(target_id)
+        center_style = \
+            """
+            <style>
+            p {text-align: center;}
+            div {text-align: center;}
+            img {text-align: center;}
+            </style>
+            """
+        desc_html = \
+            f"""
+            {center_style}
+            <table border="1">
+            <tr>
+            <!-- First row -->
+            <td><b>Product ID</b></td><td>{target_id}</td>
+            </tr>
+            <tr>
+            <!-- Second row -->
+            <td><b>Name</b></td><td>{target_name}</td>
+            </tr>
+            <tr>
+            <!-- Third row -->
+            <td><b>Link</b></td><td><a href="https://www.coupang.com/vp/products/{target_id}">쿠팡 상품 페이지</a></td>
+            </tr>
+            <tr>
+            <!-- Forth row -->
+            <td colspan='2'><img src="{img_url}" alt="Network Error!" width="300" height="300"></td>
+            </tr>
+            </table>
+            """
+        desc_div.text = desc_html
+
+    @staticmethod
+    def update_datatable(target_id):
         global similar_top_list
         target_id = str(target_id)
 
@@ -256,40 +313,8 @@ class EventHandler:
                 target_name = target_product[1]
                 id_input.value = target_id
 
-        img_url = EventHandler.get_product_img_url(target_id)
-
-        center_style = \
-            """
-            <style>
-            p {text-align: center;}
-            div {text-align: center;}
-            img {text-align: center;}
-            </style>
-            """
-        desc_html = \
-            f"""
-            {center_style}
-            <table border="1">
-            <tr>
-            <!-- First row -->
-            <td><b>Product ID</b></td><td>{target_id}</td>
-            </tr>
-            <tr>
-            <!-- Second row -->
-            <td><b>Name</b></td><td>{target_name}</td>
-            </tr>
-            <tr>
-            <!-- Third row -->
-            <td><b>Link</b></td><td><a href="https://www.coupang.com/vp/products/{target_id}">쿠팡 상품 페이지</a></td>
-            </tr>
-            <tr>
-            <!-- Forth row -->
-            <td colspan='2'><img src="{img_url}" alt="Network Error!" width="300" height="300"></td>
-            </tr>
-            </table>
-            """
-        desc_div.text = desc_html
-        EventHandler.update_datatable(target_id, target_name)
+        EventHandler.update_product_desc(target_id, target_name)
+        EventHandler.update_datatable(target_id)
 
     @staticmethod
     def row_select_handler(attr, old, new):
@@ -302,44 +327,10 @@ class EventHandler:
         target_id = str(product_tuple[0])
         target_name = product_tuple[1]
 
-        img_url = EventHandler.get_product_img_url(target_id)
-
-        center_style = \
-            """
-            <style>
-            p {text-align: center;}
-            div {text-align: center;}
-            img {text-align: center;}
-            </style>
-            """
-
-        desc_html = \
-            f"""
-            {center_style}
-            <table border="1">
-            <tr>
-            <!-- First row -->
-            <td><b>Product ID</b></td><td>{target_id}</td>
-            </tr>
-            <tr>
-            <!-- Second row -->
-            <td><b>Name</b></td><td>{target_name}</td>
-            </tr>
-            <tr>
-            <!-- Third row -->
-            <td><b>Link</b></td><td><a href="https://www.coupang.com/vp/products/{target_id}">쿠팡 상품 페이지</a></td>
-            </tr>
-            <tr>
-            <!-- Forth row -->
-            <td colspan='2'><img src="{img_url}" alt="Network Error!" width="300" height="300"></td>
-            </tr>
-            </table>
-            """
-        desc_div.text = desc_html
-
         id_input.value = target_id
 
-        EventHandler.update_datatable(target_id, target_name)
+        EventHandler.update_product_desc(target_id, target_name)
+        EventHandler.update_datatable(target_id)
 
 
 # Prepare Data
@@ -378,24 +369,26 @@ search_tab = Panel(child=search_layout, title="Search")
 
 # network cpng_nlp_viz
 
-plot = Plot(title="CPNG_NLP_VS", width=1400, height=650, x_range=Range1d(-1.1, 1.1), y_range=Range1d(-1.1, 1.1))
+plot = Plot(title="CPNG_NLP_VS", width=1200, height=600, x_range=Range1d(-1.1, 1.1), y_range=Range1d(-1.1, 1.1))
 
 explanation_p = Paragraph(
-    text="리뷰를 기준으로 유사 상품 300개를 네트워크 형식으로 도출함",
+    text="리뷰를 기준으로 유사 상품 300개 정도를 네트워크 형식으로 도출함. 버튼을 누르면 랜덤하게 네트워크 생성.",
     width=plot.width,
     height=10
 )
 
-network_id_input = TextInput(value="이곳에 키워드 또는 Product ID 입력 (Ex: 라면 or 2437845)", width=600)
+network_id_input = TextInput(value="이곳에 키워드 또는 Product ID 입력 (Ex: 라면 or 2437845)", width=400)
 
 network_search_btn = Button(label="Search", button_type="success")
 network_search_btn.on_click(EventHandler.network_search_btn_handler)
 
-network_div = Div(width=400, height=50, height_policy="fixed")
+network_div = Div(width=500, height=80, height_policy="fixed")
+
+density_div = Div(width=100, height=80, height_policy="fixed")
 
 network_layout = column(
     explanation_p,
-    row(network_id_input, network_search_btn, network_div),
+    row(column(network_id_input, network_search_btn), network_div, density_div),
     plot,
 )
 
