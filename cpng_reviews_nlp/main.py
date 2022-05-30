@@ -131,9 +131,10 @@ def open_model_tags_order():
 
 
 def run(model, tags_order):
-    index = 100
-    similar_product = model.docvecs.most_similar(index)
-    print(tags_order[index])
+    index1 = 987
+    index2 = 12
+    similar_product = model.dv.most_similar(positive=[index1], negative=[index2])
+    print(tags_order[index1],tags_order[index2])
     for elem in similar_product:
         print(tags_order[elem[0]], elem[1])
 

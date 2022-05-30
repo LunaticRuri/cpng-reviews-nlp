@@ -1,21 +1,21 @@
-import networkx as nx
-import random
-from bokeh.plotting import figure, curdoc
-from bokeh.io import output_file, show
-from bokeh.models import (BoxZoomTool, Circle, HoverTool, TapTool,
-                          MultiLine, Plot, Range1d, ResetTool)
+from bokeh.layouts import column, row
+from bokeh.models import (BoxZoomTool, HoverTool, TapTool, ResetTool,
+                          MultiLine, Circle, Plot, Range1d, ColumnDataSource,
+                          DataTable, Button, Div, TextInput,
+                          TableColumn, Panel, Tabs, Paragraph)
 from bokeh.palettes import Spectral4
 from bokeh.plotting import from_networkx
-from bokeh.events import Tap
-from bokeh.models import (ColumnDataSource, DataTable, LabelSet,
-                          TableColumn, Panel, Tabs, Paragraph)
-from bokeh.layouts import column, row
-from bokeh.models import Button, CustomJS, Div, TextInput, Select
+
+from bokeh.plotting import curdoc
+from bokeh.client import push_session
+
+from bs4 import BeautifulSoup
+import networkx as nx
+import requests
+import urllib3
 import pickle
-from bokeh.client import push_session, pull_session
-from gensim.models import doc2vec
+import random
 import queue
-from pprint import pprint
 
 
 def build_network_structure(start_product_id):
@@ -114,7 +114,7 @@ class Doc2vecModel:
 
 class EventHandler:
     def __init__(self):
-        pass
+        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
     @staticmethod
     def network_search_btn_handler():
@@ -124,13 +124,12 @@ class EventHandler:
             target_id = target_input
             target_name = d2v.get_name_by_product_id(target_id)
 
-
             network_div.text = \
-                f"""<b>Product ID: </b> {target_id} <br><b>Name: </b> {target_name}<br>"""\
+                f"""<b>Product ID: </b> {target_id} <br><b>Name: </b> {target_name}<br>""" \
                 f"""<b>Link: </b><a href="https://www.coupang.com/vp/products/{target_id}">쿠팡 상품 페이지</a>"""
 
             new_plot = Plot(title="CPNG_NLP_VS", width=1400, height=650, x_range=Range1d(-1.1, 1.1),
-                        y_range=Range1d(-1.1, 1.1))
+                            y_range=Range1d(-1.1, 1.1))
 
             new_G = build_network_structure(target_id)
 
@@ -186,8 +185,162 @@ class EventHandler:
                 network_layout.children[2] = new_plot
 
     @staticmethod
+    def get_soup(url):
+        HEADERS = {
+            "User-Agent": 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) '
+                          'Version/15.4 Safari/605.1.15',
+            'Cookie': 'Cookie:bm_sv=IHATECOOKIE;x-coupang-accept-language=ko_KR;',
+            'Referer': f'https://www.coupang.com/',
+        }
+
+        try:
+            response = requests.get(url, headers=HEADERS, verify=False)
+        except requests.exceptions.HTTPError as err:
+            return False
+        except requests.exceptions.ConnectionError:
+            return False
+
+        html = response.text
+        soup = BeautifulSoup(html, 'lxml')
+
+        return soup
+
+    @staticmethod
+    def get_product_img_url(product_id):
+        product_url = f"https://www.coupang.com/vp/products/{product_id}"
+        soup = EventHandler.get_soup(product_url)
+        if not soup:
+            return False
+        target_soup = soup.find("img", {"class": "prod-image__detail"})
+        # print(target_soup)
+        if not target_soup:
+            return False
+        img_url = "https:" + target_soup['src']
+        return img_url
+
+    @staticmethod
+    def update_datatable(target_id, target_name):
+        global similar_top_list
+        target_id = str(target_id)
+
+        new_similar_top_list = d2v.get_most_similar(target_id)
+
+        new_data = {
+            "id": [elem[0] for elem in new_similar_top_list],
+            "name": [elem[1] for elem in new_similar_top_list],
+            "dist": [elem[2] for elem in new_similar_top_list],
+        }
+        source.data = new_data
+
+        similar_top_list = new_similar_top_list
+
+        data_table.update(source=source)
+
+    @staticmethod
     def search_btn_handler():
-        print()
+        global similar_top_list
+        target_input = id_input.value_input
+        if d2v.is_id_exist(target_input):
+            target_id = target_input
+            target_name = d2v.get_name_by_product_id(target_id)
+            id_input.value = target_id
+        else:
+            matching = d2v.get_products_by_keyword(target_input)
+            if not matching:
+                desc_div.text = "데이터에 없는 상품이거나 잘못된 번호입니다. (리소스 부족으로 상품 데이터 받아오기 안됨)"
+                id_input.value = ""
+                return True
+            else:
+                target_product = random.choice(matching)
+                target_id = target_product[0]
+                target_name = target_product[1]
+                id_input.value = target_id
+
+        img_url = EventHandler.get_product_img_url(target_id)
+
+        center_style = \
+            """
+            <style>
+            p {text-align: center;}
+            div {text-align: center;}
+            img {text-align: center;}
+            </style>
+            """
+        desc_html = \
+            f"""
+            {center_style}
+            <table border="1">
+            <tr>
+            <!-- First row -->
+            <td><b>Product ID</b></td><td>{target_id}</td>
+            </tr>
+            <tr>
+            <!-- Second row -->
+            <td><b>Name</b></td><td>{target_name}</td>
+            </tr>
+            <tr>
+            <!-- Third row -->
+            <td><b>Link</b></td><td><a href="https://www.coupang.com/vp/products/{target_id}">쿠팡 상품 페이지</a></td>
+            </tr>
+            <tr>
+            <!-- Forth row -->
+            <td colspan='2'><img src="{img_url}" alt="Network Error!" width="300" height="300"></td>
+            </tr>
+            </table>
+            """
+        desc_div.text = desc_html
+        EventHandler.update_datatable(target_id, target_name)
+
+    @staticmethod
+    def row_select_handler(attr, old, new):
+        global similar_top_list
+
+        if not new:
+            return True
+
+        product_tuple = similar_top_list[new[0]]
+        target_id = str(product_tuple[0])
+        target_name = product_tuple[1]
+
+        img_url = EventHandler.get_product_img_url(target_id)
+
+        center_style = \
+            """
+            <style>
+            p {text-align: center;}
+            div {text-align: center;}
+            img {text-align: center;}
+            </style>
+            """
+
+        desc_html = \
+            f"""
+            {center_style}
+            <table border="1">
+            <tr>
+            <!-- First row -->
+            <td><b>Product ID</b></td><td>{target_id}</td>
+            </tr>
+            <tr>
+            <!-- Second row -->
+            <td><b>Name</b></td><td>{target_name}</td>
+            </tr>
+            <tr>
+            <!-- Third row -->
+            <td><b>Link</b></td><td><a href="https://www.coupang.com/vp/products/{target_id}">쿠팡 상품 페이지</a></td>
+            </tr>
+            <tr>
+            <!-- Forth row -->
+            <td colspan='2'><img src="{img_url}" alt="Network Error!" width="300" height="300"></td>
+            </tr>
+            </table>
+            """
+        desc_div.text = desc_html
+
+        id_input.value = target_id
+
+        EventHandler.update_datatable(target_id, target_name)
+
 
 # Prepare Data
 start_id = "2437845"
@@ -198,6 +351,7 @@ similar_top_list = d2v.get_most_similar(start_id)
 # recommendation system
 id_input = TextInput(value="이곳에 키워드 또는 Product ID 입력 (Ex: 라면 or 2437845)", width=600)
 search_btn = Button(label="Search", button_type="success")
+search_btn.on_click(EventHandler.search_btn_handler)
 
 data = {
     "id": [elem[0] for elem in similar_top_list],
@@ -213,11 +367,13 @@ columns = [
     TableColumn(field="dist", title="Distance"),
 ]
 
-data_table = DataTable(source=source, columns=columns, width=600, height=300)
+source.selected.on_change('indices', EventHandler.row_select_handler)
 
-div = Div(width=600, height=400, height_policy="fixed")
+data_table = DataTable(source=source, columns=columns, width=600, height=600)
 
-search_layout = column(row(id_input, search_btn), div, data_table)
+desc_div = Div(width=600, height=400, height_policy="fixed")
+
+search_layout = column(id_input, search_btn, desc_div, data_table)
 search_tab = Panel(child=search_layout, title="Search")
 
 # network cpng_nlp_viz
