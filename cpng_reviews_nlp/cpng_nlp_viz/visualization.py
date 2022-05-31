@@ -36,8 +36,8 @@ def build_network_structure(start_product_id):
     q.put(start_product_id)
 
     while len(products_on_graph) < 300 or escape_cnt < 100:
-        if not q:
-            raise SystemExit("build_network_structure err: q is empty")
+        if q.empty():
+            break
         target_id = q.get()
         similar_list = dv.get_most_similar(target_id)
 
@@ -364,7 +364,10 @@ data_table = DataTable(source=source, columns=columns, width=600, height=600)
 
 desc_div = Div(width=600, height=400, height_policy="fixed")
 
-search_layout = column(id_input, search_btn, desc_div, data_table)
+howto_div = Div(width=600, height=20, height_policy="fixed")
+howto_div.text = "<b>표의 행을 클릭해보세요!</b>"
+
+search_layout = column(id_input, search_btn, desc_div, howto_div, data_table)
 search_tab = Panel(child=search_layout, title="Search")
 
 # network cpng_nlp_viz
@@ -372,7 +375,8 @@ search_tab = Panel(child=search_layout, title="Search")
 plot = Plot(title="CPNG_NLP_VS", width=1200, height=600, x_range=Range1d(-1.1, 1.1), y_range=Range1d(-1.1, 1.1))
 
 explanation_p = Paragraph(
-    text="리뷰를 기준으로 유사 상품 300개 정도를 네트워크 형식으로 도출함. 버튼을 누르면 랜덤하게 네트워크 생성.",
+    text="리뷰를 기준으로 유사 상품 300개 정도를 네트워크 형식으로 도출함. "
+         "버튼을 누르면 랜덤하게 네트워크 생성. 리소스 부족으로 시간이 좀 걸릴 수 있음 (다시 접속)",
     width=plot.width,
     height=10
 )
@@ -382,7 +386,7 @@ network_id_input = TextInput(value="이곳에 키워드 또는 Product ID 입력
 network_search_btn = Button(label="Search", button_type="success")
 network_search_btn.on_click(EventHandler.network_search_btn_handler)
 
-network_div = Div(width=500, height=80, height_policy="fixed")
+network_div = Div(width=600, height=80, height_policy="fixed")
 
 density_div = Div(width=100, height=80, height_policy="fixed")
 
@@ -416,5 +420,4 @@ graph_renderer.edge_renderer.glyph = MultiLine(
 plot.renderers.append(graph_renderer)
 
 curdoc().add_root(Tabs(tabs=[search_tab, network_tab]))
-session = push_session(curdoc())
-session.show()
+curdoc().title = "CPNG_NLP"
