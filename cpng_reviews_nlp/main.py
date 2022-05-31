@@ -1,10 +1,18 @@
+"""
+Density
+cpng_0abcdef_total = 0.06234299351582717
+cpng_0abcdef_45 = 0.05345880853285768
+cpng_0abcdef_123 = 0.021859118428214582
+cpng_0abcdef_extended =
+"""
+
 import networkx as nx
 import queue
 import pickle
 from tqdm import tqdm
 
-model_path = "../data/model/cpng_0abcdef/cpng_0abcdef_doc2vec_model.pickle"
-model_tags_order_path = "../data/model/cpng_0abcdef/cpng_0abcdef_doc2vec_model_tags_order.pickle"
+model_path = "../data/model/cpng_0abcdef_123/cpng_0abcdef_123_doc2vec_model.pickle"
+model_tags_order_path = "../data/model/cpng_0abcdef_123/cpng_0abcdef_123_doc2vec_model_tags_order.pickle"
 
 class Doc2vecModel:
     def __init__(self):
