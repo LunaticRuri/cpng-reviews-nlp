@@ -1,7 +1,8 @@
-import json
-import matplotlib.pyplot as plt
-import numpy as np
+"""
+발표 자료 및 보고서용 데이터 산출 목적 코드
+"""
 
+import json
 
 """
 리뷰 데이터 설명
@@ -78,18 +79,3 @@ for main_c in category_dict.keys():
 
 for k, v in ct_dist.items():
     print(k, len(reviews_set & v))
-
-"""
-ct = []
-r_cnt = []
-for k, v in ct_dist.items():
-    ct.append(k)
-    r_cnt.append(len(reviews_set & v))
-
-x = np.arange(len(ct))
-
-plt.bar(x, r_cnt)
-plt.xticks(x, ct)
-
-plt.show()
-"""

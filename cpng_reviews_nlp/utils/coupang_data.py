@@ -1,3 +1,12 @@
+"""
+쿠팡 카테고리 데이터 다운로드 및 관리 모듈
+사실 좀 구조적으로 만들려고 했는데 시간이 없어서 생각나는대로 만들었더니
+원래 머릿속의 설계와는 많이 달라진 누더기 코드가 되어버렸다
+경로 설정 주의가 필요
+원래 여기서 리뷰까지 다 받아와서 한 오브젝트에서 다 처리할려고 했는데,
+양이 너무 많아 run_dividing.py로 분할 실행했다.
+"""
+
 import json
 from functools import reduce
 from cpng_reviews_nlp.utils import coupang_reviews_fetcher as rf, coupang_category_fetcher as cf
@@ -12,11 +21,11 @@ class CoupangData:
             max_product_count=200,
             max_char_count=20000,
             max_thread=40,
-            category_file_path='../category_tree.json',
-            reviews_file_path='../data/reviews',  # TODO: 디폴트 경로는 추후에 수정
+            category_file_path='../../data/backup/category_tree.json',
+            reviews_file_path='../../data/reviews',
             category_update=False,
             get_reviews=False,
-            reviews_update=False,  # TODO: T,F 나중에 결정 하기
+            reviews_update=False,
     ):
         """CoupangData 생성자
         :param root_category_id: 최상위 카테고리 - 자신을 제외한 하부 카테고리 모두 포함하게 됨
@@ -24,8 +33,10 @@ class CoupangData:
         :type root_category_id: str
         :param max_product_count: 카테고리 당 최대 product 수
         :type max_product_count: int
-        :param file_path: 카테고리 json 파일 저장할 경로, 디폴트는 './category_tree.json'
-        :type file_path: str
+        :param category_file_path: 카테고리 json 파일 저장할 경로, 디폴트는 '../../data/backup/category_tree.json'
+        :type category_file_path: str
+        :param reviews_file_path: 리뷰 json 파일 저장할 경로, 디폴트는 '../../data/reviews'
+        :type category_file_path: str
         :param max_thread: 멀티쓰레딩에 사용할 최대 스레드 개수, 디폴트는 40
         :type max_thread: int
         :param category_update: True이면 파일 존재 여부와 관계 없이 데이터를 새로 받아옴
@@ -55,7 +66,7 @@ class CoupangData:
                         product_set.add(elem)
 
             # TODO: 나중에 지우기
-            #product_set=set(random.choices([*product_set], k=100))
+            # product_set=set(random.choices([*product_set], k=100))
 
             self.rwr = rf.CoupangReviewsFetcher(
                 product_set,
@@ -144,30 +155,6 @@ class CoupangData:
             raise SystemExit("Can't find the file.")
         return output_dict
 
-    def get_reviews_by_category(self, category_id):
-        # 하위 모두 포함
-        # 별점 별로 나뉨 rtype: dictionary
-
-        children = self.get_children(category_id)
-
-        product_set = set(self.get_data_by_category(category_id)["product_list"])
-
-        for _, v in self.get_all_category_iter(self.get_children(category_id)):
-            if type(v) is list:
-                for elem in v:
-                    product_set.add(elem)
-
-        output_dict = {
-            "1": "",
-            "2": "",
-            "3": "",
-            "4": "",
-            "5": "",
-        }
-
-        #for p_id in product_set:
-
-
 
 # Example Usage
 
@@ -177,12 +164,9 @@ def demo_coupang_category():
 
     print(test_tree.is_exist('194282'))
     print(test_tree.get_parent('194282'))
-    #pprint.pprint(test_tree.get_children('194282'), indent=4)
-    #pprint.pprint(test_tree.get_data_by_category('194282'), indent=4)
 
 
 def fetch_ramyeon_category():
-
     t1 = time.time()
     test_tree = CoupangData(
         category_update=True,

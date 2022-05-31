@@ -1,3 +1,9 @@
+"""
+쿠팡 상품 페이지에 접속해 리뷰 데이터를 받아오는 모듈
+2022년 6월 1일 기준이라 사이트 구조 변경 시 작동 안 할 수 있음
+한 IP에서 과도하게 크롤링할 경우 차단 가능성 매우 높음
+"""
+
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import requests
 import time
@@ -25,7 +31,7 @@ class CoupangReviewsFetcher:
             reviews_update,
             max_thread,
             max_char_count,
-            work_ch = '0',  # tmp
+            work_ch='0',  # tmp
     ):
         urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 

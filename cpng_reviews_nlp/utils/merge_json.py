@@ -1,7 +1,15 @@
+"""
+리뷰 JSON 파일 관련 code snippet
+"""
+import os
 from os import listdir
-from os.path import isfile, join
+from os.path import join
 from pprint import pprint
 import json
+
+# ------------------------------------- #
+
+# 각 상품이 각기 다른 파일로 저장이 되었을 때 dict로 합치기
 reviews_path = "../data/reviews/ramyeon/ramyeon"
 output_sum_dict = {}
 for f in listdir(reviews_path):
@@ -13,9 +21,7 @@ pprint(output_sum_dict)
 
 # ------------------------------------- #
 
-from os import listdir
-from os.path import isfile, join
-import json
+# dividing 작업이 마무리 되었을 경우에 받아온 것 기존 자료랑 합치기
 reviews_path = "../data/dividing/tmp_reviews/"
 merge_dict = "../data/reviews/0abc.json"
 
@@ -32,12 +38,7 @@ with open("../data/reviews/0abcp.json", 'w+') as fp:
 
 # ------------------------------------- #
 
-from os import listdir
-from os.path import isfile, join
-import os
-from pprint import pprint
-import json
-
+# 상품 파일 중 리뷰가 하나도 포함되어 있지 않은 파일 지우기
 reviews_path = "../data/dividing/tmp_reviews/"
 output_sum_dict = {}
 for f in listdir(reviews_path):

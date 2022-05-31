@@ -8,9 +8,8 @@ from tqdm import tqdm
 import math
 import urllib3
 
-class CoupangCategoryFetcher:
-    # TODO: tree는 그래도 놔두고 product_list만 update하는 부분 추가
 
+class CoupangCategoryFetcher:
     headers = {
         "User-Agent": 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) '
                       'Version/15.4 Safari/605.1.15',
@@ -146,7 +145,6 @@ class CoupangCategoryFetcher:
 
         print("Fetching category data...")
 
-
         #  TODO: 불러온 파일이 원하는 데이터 아닐 경우 예외 처리 구현
         if not self.update:
             self.category_tree = self.read_json_category_tree()
@@ -248,7 +246,7 @@ class CoupangCategoryFetcher:
 
         for page in range(1, end_page + 1):
             category_page_url = f"https://www.coupang.com/np/categories/{category_id}?" \
-                  f"listSize={CoupangCategoryFetcher.PAGE_LIST_SIZE}&page={page}&sorter=saleCountDesc"
+                                f"listSize={CoupangCategoryFetcher.PAGE_LIST_SIZE}&page={page}&sorter=saleCountDesc"
 
             soup = self.get_soup(category_page_url)
 
