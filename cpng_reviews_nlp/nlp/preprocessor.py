@@ -1,8 +1,13 @@
+"""
+간단한 전처리기
+"""
+
 from konlpy.tag import Mecab
 import re
 
 
 class Preprocessor:
+    # 제외 목록
     stop_pos = ['JX', 'JKS', 'JKC', 'JKG', 'JKO', 'JKB', 'JKV', 'JKQ', 'EF',
                 'JC', 'SY', 'EP', 'MM', 'NNBC', 'NP', 'EC', 'VCP', 'NMB', 'MAG']
 
@@ -20,17 +25,17 @@ class Preprocessor:
     @staticmethod
     def pos_remover(token_pos_tuple):
         """
-        if token_pos_tuple[1] == 'MAG' and token_pos_tuple[0] == '안':
-            return False
-        """
 
+        :param token_pos_tuple: ()
+        :return:
+        """
         if token_pos_tuple[1] in Preprocessor.stop_pos:
             return True
         else:
             return False
 
     @staticmethod
-    def only_hangul_space(raw_text):
+    def only_hangul_number_space(raw_text):
         r_hangul = re.sub(r'[^ㄱ-ㅣ가-힣ㅣ\s\d]', "", raw_text)
         return r_hangul
 
@@ -50,8 +55,6 @@ class Preprocessor:
         return output_list
 
 
-raw_sentence = \
-    "실제로 사지 않았지만 딱 봐도 별로인 거 같네요."
-
-pp =Preprocessor(mode=Preprocessor.POS)
-print(pp.preprocessing(raw_sentence))
+def test_preprocessor_pos(raw_sentence):
+    pp = Preprocessor(mode=Preprocessor.POS)
+    print(pp.preprocessing(raw_sentence))

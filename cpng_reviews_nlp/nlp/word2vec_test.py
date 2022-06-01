@@ -1,3 +1,7 @@
+"""
+쿠팡 리뷰 데이터를 간단한 word2vec 모델
+"""
+
 from konlpy.tag import Mecab
 import json
 from tqdm import tqdm
@@ -7,12 +11,20 @@ import pickle
 
 
 def preprocessing(raw_text):
+    """
+    초성 지우고 한글과 공백 하나만을 남김
+    :param raw_text: 리뷰 데이터 그대로
+    :return:
+    """
     output = re.sub(r'[^ㄱ-ㅣ가-힣ㅣ\s]', "", raw_text)
     return output
 
 
 def new_model():
-    path = "../data/reviews/0abc.json"
+    """
+    새로운 Word2Vec 모델 학습
+    """
+    path = "../data/reviews/0abcdef.json"
 
     with open(path, 'r') as f:
         product_reviews = json.load(f)
@@ -25,8 +37,9 @@ def new_model():
             if not data:
                 continue
 
-            if len(data) >= 2000:
-                data = data[:2000]
+            # 한 rating에 분량이 4000자 이상이면 4000자로 자르기
+            if len(data) >= 4000:
+                data = data[:4000]
 
             r_split = [preprocessing(review) for review in data.split("\n")]
 
@@ -46,6 +59,24 @@ def new_model():
 
     model = Word2Vec(sentences=tokenized_data, vector_size=300, window=5, min_count=5, workers=5, sg=0)
 
+    with open('../data/model/cpng_0abc_filtered_word2vec.pickle', 'wb') as fp:
+        pickle.dump(model, fp)
+
+def load_model():
+    """
+    pickle로 저장한 gensim의 Word2vec 모델을 반환
+    :return: Word2Vec model
+    """
+    with open('../data/model/cpng_0abc_filtered_word2vec.pickle', 'rb') as fp:
+        model = pickle.load(fp)
+    return model
+
+
+def run_model(model):
+    """
+    model 출력 확인
+    """
+    # 생각보다 그렇게 잘 나오지는 않는다.
     print(model.wv.vectors.shape)
     print(model.wv.most_similar(positive=["휴대폰", "컴퓨터"]))
     print(model.wv.most_similar(positive=["신라면"], negative=["삼양라면"]))
@@ -53,12 +84,7 @@ def new_model():
     print(model.wv.most_similar(positive=["차", "그릇"]))
     print(model.wv.most_similar(positive=["스마트폰"], negative=["안드로이드"]))
 
-    with open('../data/model/cpng_0abc_filtered_word2vec.pickle', 'wb') as fp:
-        pickle.dump(model, fp)
-
-def load_model():
-    with open('../data/model/cpng_0abc_filtered_word2vec.pickle', 'rb') as fp:
-        model = pickle.load(fp)
-    return model
 
 new_model()
+model = load_model()
+run_model(model)
