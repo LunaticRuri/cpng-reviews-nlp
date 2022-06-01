@@ -1,3 +1,7 @@
+"""
+Bokeh Server를 이용한 리뷰 기반 상품 추천 시스템 프론트엔드? 예시
+"""
+
 from bokeh.layouts import column, row
 from bokeh.models import (BoxZoomTool, HoverTool, TapTool, ResetTool,
                           MultiLine, Circle, Plot, Range1d, ColumnDataSource,
@@ -7,7 +11,6 @@ from bokeh.palettes import Spectral4
 from bokeh.plotting import from_networkx
 
 from bokeh.plotting import curdoc
-
 
 from bs4 import BeautifulSoup
 import requests
@@ -63,9 +66,12 @@ def build_network_structure(start_product_id):
 
 class Doc2vecModel:
     def __init__(self):
+        # 실행 환경에 따라 경로는 적당하게 수정
         self.model_path = "./cpng_nlp_viz_server/model/cpng_0abcdef_doc2vec_model.pickle"
         self.model_tags_order_path = "./cpng_nlp_viz_server/model/cpng_0abcdef_doc2vec_model_tags_order.pickle"
+
         self.model, self.tags_order = self.open_model_tags_order()
+
         self.search_table_by_id = \
             {str(elem[0]): {"index": index, "name": elem[1]} for elem, index in
              zip(self.tags_order, range(len(self.tags_order)))}
@@ -113,11 +119,11 @@ class Doc2vecModel:
         else:
             return []
 
-    def get_new_product(self, product_id):
-        pass
-
 
 class EventHandler:
+    """
+    약간 네임스페이스 느낌으로 클래스 만들어 놓음
+    """
     def __init__(self):
         pass
 
@@ -155,7 +161,6 @@ class EventHandler:
     @staticmethod
     def update_density_div(network):
         density_div.text = f"<b>Density: </b>{nx.density(network)}"
-
 
     @staticmethod
     def update_network_plot(target_id):
@@ -209,7 +214,6 @@ class EventHandler:
 
                 EventHandler.update_network_plot(target_id)
 
-
     @staticmethod
     def get_product_img_url(product_id, product_name):
 
@@ -221,7 +225,6 @@ class EventHandler:
         }
 
         naver_url = f"https://search.shopping.naver.com/search/all?query={product_name}"
-
 
         try:
             response = requests.get(naver_url, headers=NAVER_HEADERS, timeout=1)
@@ -247,6 +250,43 @@ class EventHandler:
 
         img_url = f"https://shopping-phinf.pstatic.net/main_{root_code}/{code}.jpg?type=f140"
 
+        return img_url
+
+    @staticmethod
+    def get_product_cpng_img_url(product_id):
+        """
+        원래 쿠팡에서 이미지를 받아오려고 했으나, 쿠팡 쪽에서 AWS IP 접근을 막은 것 같아
+        get_product_img_url 함수에서 서드파티인 네이버 쇼핑 사이트를 이용해 받아오게 되었다
+        쿠팡 접근이 가능한 경우라면 이 함수를 이용해도 된다
+        """
+        HEADERS = {
+            "User-Agent": 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) '
+                          'Version/15.4 Safari/605.1.15',
+            'Cookie': 'Cookie:bm_sv=IHATECOOKIE;x-coupang-accept-language=ko_KR;',
+            'Referer': f'https://www.coupang.com/',
+        }
+        product_url = f"https://www.coupang.com/vp/products/{product_id}"
+
+        try:
+            response = requests.get(product_url, headers=HEADERS, verify=False)
+        except requests.exceptions.HTTPError:
+            return False
+        except requests.exceptions.ConnectionError:
+            return False
+
+        html = response.text
+        soup = BeautifulSoup(html, 'lxml')
+
+        if not soup:
+            return False
+
+        target_soup = soup.find("img", {"class": "prod-image__detail"})
+
+        # print(target_soup)
+        if not target_soup:
+            return False
+
+        img_url = "https:" + target_soup['src']
         return img_url
 
     @staticmethod
@@ -439,4 +479,3 @@ plot.renderers.append(graph_renderer)
 
 curdoc().add_root(Tabs(tabs=[search_tab, network_tab]))
 curdoc().title = "CPNG_NLP"
-
