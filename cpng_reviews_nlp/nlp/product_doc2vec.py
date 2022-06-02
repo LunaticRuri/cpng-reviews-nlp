@@ -70,7 +70,7 @@ class ProductDoc2vec:
                 fp.write(item + '\n')
 
         print("***********************************")
-
+        # 메모리 부족 문제로 어쩔 수 없음
         tagged_docs = TaggedLineDocument(os.path.join(self.model_path,"d2v_tagged_line_document.space"))
 
         model = doc2vec.Doc2Vec(

@@ -4,7 +4,7 @@ from konlpy.tag import Mecab
 class SimpleDependencyParser:
 
     stop_pos = ['JX', 'JKS', 'JKC', 'JKG', 'JKO', 'JKB', 'JKV', 'JKQ', 'EF',
-                'JC', 'SY', 'EP', 'MM', 'NNBC', 'NP', 'EC', 'VCP', 'NMB', 'MAG']
+                'JC', 'SY', 'EP', 'MM', 'NNBC', 'NP', 'EC', 'VCP', 'NMB']
 
     def __init__(self):
         self.mecab = Mecab()
@@ -23,7 +23,9 @@ class SimpleDependencyParser:
 
 
 def test_simple_dependency_parser():
-    sentence = "아침에 깬다음 피곤해서 더 자는 일이 줄어드는 느낌입니다."
+
+    sentence = "가격에 비해서 실망했네요"
+
     dp = SimpleDependencyParser()
     dp.foo(sentence)
 
