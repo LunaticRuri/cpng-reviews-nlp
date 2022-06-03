@@ -2,11 +2,8 @@ from konlpy.tag import Mecab
 from jamo import h2j, j2hcj
 from hangul_utils import join_jamos
 import json
-from tqdm import tqdm
-import pickle
 import re
-from sklearn.model_selection import train_test_split
-import csv
+
 
 class SimplePreprocessor:
     stop_pos = ['JX', 'JKS', 'JKC', 'JKG', 'JKO', 'JKB', 'JKV', 'JKQ', 'EF', 'IC', 'VCP', 'VCN', 'XSN', 'MAJ',
@@ -72,7 +69,7 @@ class SimplePreprocessor:
 
                 target_pair[1] = pos_stack[0]
 
-                if target_pair[1] not in SimplePreprocessor.stop_pos or\
+                if target_pair[1] not in SimplePreprocessor.stop_pos or \
                         target_pair in SimplePreprocessor.pass_word:
                     if is_etm:
                         if target_pair[1] not in ['XSA', 'XSV']:
@@ -141,7 +138,7 @@ class SimplePreprocessor:
                     except IndexError:
                         pass
 
-                if (target_pair[1] not in SimplePreprocessor.stop_pos and target_pair[1] not in ['XSA', 'XSV'])\
+                if (target_pair[1] not in SimplePreprocessor.stop_pos and target_pair[1] not in ['XSA', 'XSV']) \
                         or target_pair in SimplePreprocessor.pass_word:
                     if target_pair[1] == 'ETM':
                         after_rm.append(['*', 'ETM'])
@@ -230,18 +227,14 @@ def test_simple_dependency_parser():
 with open('../data/reviews/0abcdef.json') as fp:
     products = json.load(fp)
 
-sp = SimplePreprocessor()
-
-sent_phrase_list = []
-
-for elem in tqdm(products.values(), total=len(products)):
+for elem in products.values():
     reviews = elem['reviews']
 
     positive_rv = ''
     negative_rv = ''
 
     for review in reviews:
-        if review['rating'] in ['1','2','3']:
+        if review['rating'] in ['1', '2', '3']:
             negative_rv += review['data'] + '\n'
         else:
             positive_rv += review['data'] + '\n'
@@ -250,36 +243,8 @@ for elem in tqdm(products.values(), total=len(products)):
     if min_len < 2000:
         continue
 
-    positive_min_rv_list = positive_rv[:min_len].split('\n')
-    negative_min_rv_list = negative_rv[:min_len].split('\n')
-
-    for pos in positive_min_rv_list:
-        for p in sp.preprocessing_tuple(pos):
-            sent_phrase_list.append(['POS', ' '.join(p)])
-    for neg in negative_min_rv_list:
-        for n in sp.preprocessing_tuple(neg):
-            sent_phrase_list.append(['NEG', ' '.join(n)])
-
-with open('sent_phrase_list.pickle', 'wb') as fp:
-    pickle.dump(sent_phrase_list, fp)
-
-"""x_train, x_test = train_test_split(sent_phrase_list, test_size=0.2)
-
-print(len(x_train))
-print(len(x_test))
-
-with open("phrase_sent_train.csv", "w", newline="") as f:
-    writer = csv.writer(f)
-    writer.writerows(x_train)
-with open("phrase_sent_test.csv", "w", newline="") as f:
-    writer = csv.writer(f)
-    writer.writerows(x_test)
-"""
-
-
-
-
-
+    positive_min_rv = positive_rv[:min_len]
+    negative_min_rv = negative_rv[:min_len]
 
 
 
