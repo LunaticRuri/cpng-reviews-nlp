@@ -7,3 +7,4 @@ requests~=2.27.1
 urllib3~=1.26.9
 beautifulsoup4~=4.11.1
 bokeh~=2.4.3
+jamo~=0.4.1

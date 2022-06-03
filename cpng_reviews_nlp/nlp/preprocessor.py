@@ -8,7 +8,7 @@ import re
 
 class Preprocessor:
     # 제외 목록
-    stop_pos = ['JX', 'JKS', 'JKC', 'JKG', 'JKO', 'JKB', 'JKV', 'JKQ', 'EF',
+    stop_pos = ['JX', 'JKS', 'JKC', 'JKG', 'JKO', 'JKB', 'JKV', 'JKQ', 'EF', 'IC',
                 'JC', 'SY', 'EP', 'MM', 'NNBC', 'NP', 'EC', 'VCP', 'NMB', 'MAG']
 
     POS = "pos"
@@ -45,7 +45,7 @@ class Preprocessor:
         return output_list
 
     def preprocessing(self, raw_text):
-        hangul = self.only_hangul_space(raw_text)
+        hangul = self.only_hangul_number_space(raw_text)
         pos_list = self.mecab.pos(hangul)
         output_list = [elem for elem in pos_list if not self.pos_remover(elem)]
 
@@ -58,3 +58,4 @@ class Preprocessor:
 def test_preprocessor_pos(raw_sentence):
     pp = Preprocessor(mode=Preprocessor.POS)
     print(pp.preprocessing(raw_sentence))
+

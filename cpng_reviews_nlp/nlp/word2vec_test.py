@@ -10,6 +10,10 @@ from gensim.models import Word2Vec
 import pickle
 
 
+stop_pos = ['JX', 'JKS', 'JKC', 'JKG', 'JKO', 'JKB', 'JKV', 'JKQ', 'EF', 'IC',
+            'JC', 'SY', 'EP', 'MM', 'NNBC', 'NP', 'EC', 'VCP', 'NMB', 'MAG']
+
+
 def preprocessing(raw_text):
     """
     초성 지우고 한글과 공백 하나만을 남김
@@ -19,6 +23,9 @@ def preprocessing(raw_text):
     output = re.sub(r'[^ㄱ-ㅣ가-힣ㅣ\s]', "", raw_text)
     return output
 
+
+def pos_remover(token_pos_list):
+    return []
 
 def new_model():
     """
@@ -45,22 +52,21 @@ def new_model():
 
             reviews_list.extend(r_split)
 
-    # 불용어 정의
-    stopwords = ['의', '가', '이', '은', '들', '는', '좀', '잘', '걍', '과', '도', '를', '으로', '자', '에', '와', '한', '하다', ' ']
 
     # 형태소 분석기 mecab를 사용한 토큰화 작업 (다소 시간 소요)
     mc = Mecab()
 
     tokenized_data = []
     for sentence in tqdm(reviews_list):
-        tokenized_sentence = mc.morphs(sentence)  # 토큰화
-        stopwords_removed_sentence = [word for word in tokenized_sentence if not word in stopwords]  # 불용어 제거
+        tokenized_sentence = mc.pos(sentence)  # 토큰화
+        stopwords_removed_sentence = [pair[0] for pair in tokenized_sentence if not pair[1] in stop_pos]  # 불용어 제거
         tokenized_data.append(stopwords_removed_sentence)
 
     model = Word2Vec(sentences=tokenized_data, vector_size=300, window=5, min_count=5, workers=5, sg=0)
 
     with open('../data/model/cpng_0abc_filtered_word2vec.pickle', 'wb') as fp:
         pickle.dump(model, fp)
+
 
 def load_model():
     """

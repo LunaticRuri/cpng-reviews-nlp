@@ -1,7 +1,6 @@
 from konlpy.tag import Mecab
 from jamo import h2j, j2hcj
 from hangul_utils import join_jamos
-
 import re
 
 
@@ -165,8 +164,6 @@ class SimplePreprocessor:
         target_text = self.only_hangul_number_space_dot(pp_raw_text)
         pos_list = self.pos_remover(self.mecab.pos(target_text))
 
-        print(pos_list)
-
         output_tuple_list = []
         history = []
 
@@ -216,17 +213,12 @@ class SimplePreprocessor:
             if elem != ['', 'START']:
                 history.insert(0, elem)
 
-            print(history)
-        print(output_tuple_list)
-
-
+        return output_tuple_list
 
 
 def test_simple_dependency_parser():
-    sentence = "쿠팡에서 가장 저렴한 라면 늘 먹던 라면 말고.. 오늘은 뭔가 새로운 라면이 먹고싶더라구요 쿠팡에서 라면을 검색해서 결과에서 낮은 가격순으로 정렬했더니 이제품이 가장 저렴하더라구요 물론 사리면이 가장 저렴하다고도 할수있겠지만.. 그건 스프가 안들은거고 스프가 있는 라면중.. 가장 저렴한 라면"
+    sentence = "가장 저렴한 라면."
 
     dp = SimplePreprocessor()
-    dp.preprocessing_tuple(sentence)
+    print(dp.preprocessing_tuple(sentence))
 
-
-test_simple_dependency_parser()
