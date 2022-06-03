@@ -19,14 +19,19 @@ CPNG Reviews Analysis using NLP
 이러한 이론적 배경에 근거하여, 우리 조는 ‘리뷰’라는 정보원을 분석할 필요가 있음을 느꼈다. ‘별점’이라는 수치화된 리뷰와 함께, 상품에 대한 소비자의 주관적인 평가가 반영되어 있는 리뷰 분석을 통해 기업은 소비자의 니즈를 분석할 수 있고, 이를 상품 추천 시스템에 반영한다면 좋은 결과를 얻을 수 있으리라 판단했다.
 
 ### 1.2 목적 및 필요성 Purpose
-카테고리 별로 쿠팡에서 판매되고 있는 특정 상품군들 중 판매량 상위 10개 상품을 선정하여 리뷰와 별점을 분석함으로써 소비자들이 공통적으로 언급하고 있는 ‘상품의 장점’과 ‘상품의 아쉬운 점’을 파악할 수 있다. 이를 통해 해당 상품군에서 시장 경쟁력을 확보하기 위해 기업이 고려하여야 할 요소가 무엇이 있는지 파악할 수 있을 것이다. 
+추천 상품 시스템은 이커머스 업체들이 가장 공들이는 부분 중 하나이다.
+리뷰는 상품의 특성과 소비자의 요구를 가장 잘 드러내는 데이터임에도 불구하고, 상품 리뷰 자체를 큰 비중으로 추천 시스템에 반영하는 경우는 드물다.
+특히, 선행 연구 조사를 통해, 리뷰 데이터를 상품
 
 ### 1.3 프로젝트 내용 및 의의 Significance
-쿠팡에서 특정 상품군을 선정하여 그 중 판매량 상위 10위에 속하는 상품들의 리뷰를 분석한다. 쿠팡이 국내 최대 규모의 소셜커머스 업체인만큼 다른 업체의 리뷰들에 비해 방대한 양의 리뷰에 접근 및 분석함으로써 기업이 시장 경쟁력을 가진 상품을 출시하기 위해 무엇을 고려해야 하는지 제언 및 시각화할 수 있을 것이라고 판단했다.
+카테고리 별로 쿠팡에서 많이 판매되고 있는 인기 상품들의 리뷰를 임베딩함으로써 상품의 특성을 담아낸 임베딩을 구성할 수 있고,
+본 프로젝트에서는 상품 리뷰 데이터만을 가지고도 충분히 실사용 가능한 연관 상품 추천 시스템을 구현할 수 있다는 것,
+나아가 사용자가 직접 원하는 긍정적 특성이 담긴 쿼리 문장을 입력, 제시된 추천 상품들을 필터링하여 상품 검색에 있어 사용자 경험을 향상시킬 수 있음을 보이고자 한다.
+이는 가치에 비해 추천 시스템에서 상대적으로 적게 사용되고 있는 리뷰의 유용성을 제고하는 계기가 될 것이다.
 
 ## 2. 데이터 Data
 ### 2.1 데이터 수집 Data collection
-쿠팡 메인 페이지에서 접근할 수 있는 주요 17개 카테고리와 그 하위 카테고리의 판매량 상위 200개 
+쿠팡 메인 페이지에서 접근할 수 있는 주요 17개 카테고리와 그 하위 카테고리마다 존재하는 판매량 상위 200개 상품의 리뷰가 본 프로젝트의 타겟 데이터이다.
 ### 2.2 데이터 설명 Data description
 각 리뷰 한 단위가 곧 샘플 하나가 되고, 변인은 상품 종류, 상품명(또는 코드), 별점, 리뷰 raw text 정도가 될 것이다. 수집한 데이터를 어떤 형식으로 저장할 것인지 문제 되는데, 계획 단계에서는 일단 상품 분류별로 JSON 파일을 만들어 이를 처리하는 형태를 상정하였다.
 
@@ -36,12 +41,19 @@ CPNG Reviews Analysis using NLP
 
 ### 3.2 예상되는 난제 Challenges
 본 프로젝트에서 가장 중요한 문제는 팀원 모두가 해당 필드 프로그래밍에 익숙하지 않은 상태이기에, 구현 그 자체에서 어려움을 겪을 가능성이 매우 높다. 나아가 실제 프로젝트 개발이 어느 정도 선에서 이루어지는지 파악되지 않으면, 설계 단계에서도 비현실적인 목표 설정과 같은 문제가 생길 우려가 있다.
-데이터의 수집 난이도는 쿠팡에서 물리적으로 막지 않는 한, 어렵지는 않을 것으로 예상된다. 리뷰 데이터는 대체로 정형화되어 있지 않기 때문에, 여기서 원하는 정보를 추출하는 작업은 간단하지 않다. Aspect term 설정 시, 미리 정해진 리스트를 만들 것인지, 아니면 자동으로 추출된 것을 기반으로 만들 것인지 확실하지 않다.
-이 프로젝트는 각기 다른 제품마다 소비자들의 다양한 선호 방식이 나타날 것이라고 가정하고 진행되지만, 분석 수행 결과 카테고리 사이에서 주목할 만한 차이점을 보이지 않는다면 프로젝트 결과의 의미가 퇴색될 수 있다. 아마존, 네이버, 쿠팡 등 여러 이커머스 업체들이 많은 연구를 통해 이미 그 결과를 실제 서비스에 반영하고 있는 바, 본 프로젝트의 목표인 기업 또는 소비자들에게 제공될 제품 영역별 주요 관심 사항이 현재 서비스에 드러나지 않는 경우, 지금 상용화되어 있는 서비스와의 구별점이 문제 된다.
+데이터의 수집 과정에서 쿠팡 상품 페이지가 그렇게 규칙적이지 않기 때문에 상당한 어려움이 있을 것으로 예상된다. 리뷰 데이터는 대체로 정형화되어 있지 않기 때문에, 여기서 원하는 정보를 추출하는 작업은 간단하지 않다. 또한 학습 과정에서 부족한 연산 리소스 문제도 예상할 수 있다... 
 
-## 4. 참고문헌 References
+## 4. 읽고 참고한 자료 References
 - 김영신, 강이주, 이희숙, 정순희, & 허경옥. (2009). 새로 쓰는 소비자의사결정. 주) 교문사, 90-92.
+- 이다희, 이원민 & 온병원. (2022). 감성 정보를 반영한 워드 임베딩을 위한 학습 데이터 자동 생성 방안.
+- 정세준. (2020). 기계학습을 이용한 Aspect-Based Sentiment Analysis 기반 전기차 요소별 사용자 감성 분석 및 예측 모델링.
+- 박호연 & 김경재. (2021). BERT 기반 감성분석을 이용한 추천시스템
 - 안은미. (2013). 소비자 심리학. 서울: 박학사. 90. 
 - Do, H. H., Prasad, P. W. C., Maag, A., & Alsadoon, A. (2019). Deep learning for aspect-based sentiment analysis: a comparative review. Expert systems with applications, 118, 272-299.
-- 
+- Ray, B., Garain, A., & Sarkar, R. (2021). An ensemble-based hotel recommender system using sentiment analysis and aspect categorization of hotel reviews. Applied Soft Computing, 98, 106935.
+- Arora, S., Liang, Y., & Ma, T. (2017). A simple but tough-to-beat baseline for sentence embeddings. In International conference on learning representations.
+- Devlin, J., Chang, M. W., Lee, K., & Toutanova, K. (2018). Bert: Pre-training of deep bidirectional transformers for language understanding. arXiv preprint arXiv:1810.04805.
+- Le, Q., & Mikolov, T. (2014, June). Distributed representations of sentences and documents. In International conference on machine learning (pp. 1188-1196). PMLR.
+- Reimers, N., & Gurevych, I. (2019). Sentence-bert: Sentence embeddings using siamese bert-networks. arXiv preprint arXiv:1908.10084.
+- Vaswani, A., Shazeer, N., Parmar, N., Uszkoreit, J., Jones, L., Gomez, A. N., ... & Polosukhin, I. (2017). Attention is all you need. Advances in neural information processing systems, 30.
 - [E-commerce] 아마존, 네이버, 쿠팡, 11번가는 리뷰를 어떻게 이해하고 보여줄까? (Aspect-based), 2022년 4월 30일 검색, https://velog.io/@jonas-jun/ABSA사례
