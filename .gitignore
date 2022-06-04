@@ -242,7 +242,9 @@ playground.py
 playground.ipynb
 .idea/
 
-data/backup/
+data/backup
+
+data/sent_data
 
 data/reviews/ramyeon
 data/reviews/0abcdef.json
