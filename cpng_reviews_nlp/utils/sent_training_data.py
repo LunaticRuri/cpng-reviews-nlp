@@ -1,69 +1,57 @@
 import json
-from tqdm import tqdm
-import pickle
-from sklearn.model_selection import train_test_split
+import re
+import random
 import csv
-from cpng_reviews_nlp.nlp.simple_preprocessor import SimplePreprocessor
+from tqdm import tqdm
 
 
-def new_sent_phrase_list():
-    with open('../data/reviews/0abcdef.json') as fp:
-        products = json.load(fp)
-
-    sp = SimplePreprocessor()
-
-    sent_phrase_list = []
-
-    for elem in tqdm(products.values(), total=len(products)):
-        reviews = elem['reviews']
-
-        positive_rv = ''
-        negative_rv = ''
-
-        for review in reviews:
-            if review['rating'] in ['1', '2', '3']:
-                negative_rv += review['data'] + '\n'
-            else:
-                positive_rv += review['data'] + '\n'
-
-        min_len = min(len(positive_rv), len(negative_rv))
-        if min_len < 2000:
-            continue
-
-        positive_min_rv_list = positive_rv[:min_len].split('\n')
-        negative_min_rv_list = negative_rv[:min_len].split('\n')
-
-        for pos in positive_min_rv_list:
-            for p in sp.preprocessing_tuple(pos):
-                sent_phrase_list.append(['POS', ' '.join(p)])
-        for neg in negative_min_rv_list:
-            for n in sp.preprocessing_tuple(neg):
-                sent_phrase_list.append(['NEG', ' '.join(n)])
-
-    with open('sent_phrase_list.pickle', 'wb') as fp:
-        pickle.dump(sent_phrase_list, fp)
-
-def write_train_test_csv():
-    with open('sent_phrase_list.pickle', 'rb') as fp:
-        sent_phrase_list = pickle.load(fp)
-
-    x_train, x_test = train_test_split(sent_phrase_list, test_size=0.2)
-
-    print(len(x_train))
-    print(len(x_test))
-
-    with open("phrase_sent_train.csv", "w", newline="") as f:
-        writer = csv.writer(f)
-        writer.writerows(x_train)
-    with open("phrase_sent_test.csv", "w", newline="") as f:
-        writer = csv.writer(f)
-        writer.writerows(x_test)
+def preprocessor(raw_text):
+    r_hangul = re.sub(r'[^ㄱ-ㅣ가-힣ㅣ\s\d.]', "", raw_text)
+    return r_hangul
 
 
+with open('../data/backup/0abcdef.json') as fp:
+    reviews_json = json.load(fp)
+
+bad_reviews = []
+good_reviews = []
+
+for elem in tqdm(reviews_json.values(), total=len(reviews_json)):
+    reviews = elem['reviews']
+    for rv in reviews:
+        if 1 <= int(rv['rating']) <= 3:
+            bad_reviews.extend([preprocessor(text) for text in rv['data'].split('\n')])
+        else:
+            good_reviews.extend([preprocessor(text) for text in rv['data'].split('\n')])
 
 
+random.shuffle(bad_reviews)
+random.shuffle(good_reviews)
 
+print(f"bad: {len(bad_reviews)}, good: {len(good_reviews)}")
+print(f"bad: {bad_reviews[:10]}")
+print(f"good: {good_reviews[:10]}")
 
+train_set = [(bad, 0) for bad in bad_reviews[:1000000]] + \
+            [(good, 1) for good in good_reviews[:1000000]]
 
+test_set = [(bad, 0) for bad in bad_reviews[-100000:]] + \
+            [(good, 1) for good in good_reviews[-100000:]]
+
+random.shuffle(train_set)
+random.shuffle(test_set)
+
+# write TSV files
+with open('../data/sent_data/sent_train_mini.tsv', 'w', encoding='utf-8', newline='') as f1:
+    tw1 = csv.writer(f1, delimiter='\t')
+    tw1.writerow(('document', 'label'))
+    for elem in train_set:
+        tw1.writerow(elem)
+
+with open('../data/sent_data/sent_test_mini.tsv', 'w', encoding='utf-8', newline='') as f2:
+    tw2 = csv.writer(f2, delimiter='\t')
+    tw2.writerow(('document', 'label'))
+    for elem in test_set:
+        tw2.writerow(elem)
 
 
