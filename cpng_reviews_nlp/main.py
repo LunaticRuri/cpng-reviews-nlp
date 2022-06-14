@@ -1,67 +1,85 @@
-import pickle
-import json
-import re
-import random
-import csv
-from tqdm import tqdm
+import torch
+from torch import nn
+import torch.nn.functional as F
+import torch.optim as optim
+from torch.utils.data import Dataset, DataLoader
+import numpy as np
+from tqdm.notebook import tqdm
 
 
-def preprocessor(raw_text):
-    r_hangul = re.sub(r'[^ㄱ-ㅣ가-힣ㅣ\s\d.]', "", raw_text)
-    return r_hangul
+class BERTClassifier(nn.Module):
+    def __init__(self,
+                 bert,
+                 hidden_size=768,
+                 num_classes=2,
+                 dr_rate=None,
+                 params=None):
+        super(BERTClassifier, self).__init__()
+        self.bert = bert
+        self.dr_rate = dr_rate
 
+        self.classifier = nn.Linear(hidden_size, num_classes)
+        if dr_rate:
+            self.dropout = nn.Dropout(p=dr_rate)
 
-with open('../data/backup/0abcdef.json') as fp:
-    reviews_json = json.load(fp)
+    def gen_attention_mask(self, token_ids, valid_length):
+        attention_mask = torch.zeros_like(token_ids)
+        for i, v in enumerate(valid_length):
+            attention_mask[i][:v] = 1
+        return attention_mask.float()
 
-with open('../data/backup/food_products_set.pickle', 'rb') as fp:
-    food_products_set = pickle.load(fp)
+    def forward(self, token_ids, valid_length, segment_ids):
+        attention_mask = self.gen_attention_mask(token_ids, valid_length)
 
-bad_reviews = []
-good_reviews = []
-
-for elem in tqdm(reviews_json.values(), total=len(reviews_json)):
-    if elem['product_id'] not in food_products_set:
-        continue
-
-    reviews = elem['reviews']
-
-    for rv in reviews:
-        if 1 <= int(rv['rating']) <= 3:
-            bad_reviews.extend([preprocessor(text) for text in rv['data'].split('\n')])
+        _, pooler = self.bert(input_ids=token_ids, token_type_ids=segment_ids.long(),
+                              attention_mask=attention_mask.float().to(token_ids.device))
+        if self.dr_rate:
+            out = self.dropout(pooler)
         else:
-            good_reviews.extend([preprocessor(text) for text in rv['data'].split('\n')])
+            out = pooler
+        return self.classifier(out)
 
-bad_reviews = [elem for elem in bad_reviews if len(elem) > 1]
-good_reviews = [elem for elem in good_reviews if len(elem) > 1]
+def 
 
-random.shuffle(bad_reviews)
-random.shuffle(good_reviews)
+dataset_test = nlp.data.TSVDataset("./test_sent_sample.tsv", field_indices=[0,1], num_discard_samples=1)
+data_test = BERTDataset(dataset_test, 0, 1, tok, max_len, True, False)
+test_dataloader = torch.utils.data.DataLoader(data_test, batch_size=batch_size, num_workers=2)
 
-print(f"bad: {len(bad_reviews)}, good: {len(good_reviews)}")
-print(f"bad: {bad_reviews[:10]}")
-print(f"good: {good_reviews[:10]}")
 
-train_set = [(bad, 0) for bad in bad_reviews[:200000]] + \
-            [(good, 1) for good in good_reviews[:200000]]
+model = torch.load("./drive/MyDrive/data/Model/model_all_1010_pickled.pt")
 
-test_set = [(bad, 0) for bad in bad_reviews[-20000:]] + \
-            [(good, 1) for good in good_reviews[-20000:]]
+model.eval()
 
-random.shuffle(train_set)
-random.shuffle(test_set)
+test_acc = 0.0
 
-# write TSV files
-with open('../data/sent_data/sent_train_food.tsv', 'w', encoding='utf-8', newline='') as f1:
-    tw1 = csv.writer(f1, delimiter='\t')
-    tw1.writerow(('document', 'label'))
-    for elem in train_set:
-        tw1.writerow(elem)
+for batch_id, (token_ids, valid_length, segment_ids, label) in tqdm(enumerate(test_dataloader), total=len(test_dataloader)):
+    token_ids = token_ids.long().to(device)
+    segment_ids = segment_ids.long().to(device)
+    valid_length= valid_length
+    label = label.long().to(device)
+    out = model(token_ids, valid_length, segment_ids)
+    print(out)
+    test_acc += calc_accuracy(out, label)
+print("epoch {} test acc {}".format(5, test_acc / (batch_id+1)))
 
-with open('../data/sent_data/sent_test_food.tsv', 'w', encoding='utf-8', newline='') as f2:
-    tw2 = csv.writer(f2, delimiter='\t')
-    tw2.writerow(('document', 'label'))
-    for elem in test_set:
-        tw2.writerow(elem)
 
+
+model.load_state_dict(torch.load('./drive/MyDrive/data/Model/model_food_scripted.pt'))
+dataset_test = nlp.data.TSVDataset("./test_sent_sample.tsv", field_indices=[0,1], num_discard_samples=1)
+data_test = BERTDataset(dataset_test, 0, 1, tok, max_len, True, False)
+test_dataloader = torch.utils.data.DataLoader(data_test, batch_size=batch_size, num_workers=2)
+
+model.eval()
+
+test_acc = 0.0
+
+for batch_id, (token_ids, valid_length, segment_ids, label) in tqdm(enumerate(test_dataloader), total=len(test_dataloader)):
+    token_ids = token_ids.long().to(device)
+    segment_ids = segment_ids.long().to(device)
+    valid_length= valid_length
+    label = label.long().to(device)
+    out = model(token_ids, valid_length, segment_ids)
+    print(out)
+    test_acc += calc_accuracy(out, label)
+print("epoch {} test acc {}".format(5, test_acc / (batch_id+1)))
 
