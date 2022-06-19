@@ -130,3 +130,4 @@ def test_product_doc2vec(reviews_path, model_path):
     for elem in similar_product:
         print(tags_order[elem[0]], elem[1])
 
+

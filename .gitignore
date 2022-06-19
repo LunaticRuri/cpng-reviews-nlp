@@ -257,3 +257,5 @@ data/model/cpng_0abcdef
 data/model/cpng_0abcdef_45
 data/model/cpng_0abcdef_123
 data/model/sent_cf
+data/model/ft
+data/model/w2v

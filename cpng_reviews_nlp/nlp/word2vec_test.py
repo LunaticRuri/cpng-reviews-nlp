@@ -91,6 +91,6 @@ def run_model(model):
     print(model.wv.most_similar(positive=["스마트폰"], negative=["안드로이드"]))
 
 
-new_model()
+#new_model()
 model = load_model()
 run_model(model)
